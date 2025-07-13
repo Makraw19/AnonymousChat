@@ -269,5 +269,56 @@ body {
     background-color: #334155; /* dark:hover:bg-slate-700 */
 }
 
+/* Utility class for icon buttons in the message form */
+.control-btn-icon {
+    padding: 0.75rem; /* p-3 */
+    border-radius: 9999px; /* rounded-full */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    transition: background-color 0.2s;
+}
+.control-btn-icon:hover {
+    background-color: #e2e8f0; /* hover:bg-slate-300 */
+}
+.dark .control-btn-icon:hover {
+    background-color: #334155; /* dark:hover:bg-slate-700 */
+}
+
+/* Styles for the new emoji picker panel */
+.emoji-panel {
+    position: absolute;
+    bottom: 70px; /* Position above the message form */
+    left: 1rem;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 0.75rem;
+    display: none; /* Hidden by default */
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0.5rem;
+    width: 300px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 40;
+}
+.emoji-panel.active {
+    display: grid; /* Shown when active */
+}
+.emoji-panel span {
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    text-align: center;
+    transition: background-color 0.2s;
+}
+.emoji-panel span:hover {
+    background-color: var(--bg-tertiary);
+}
+
 
 
