@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Helios Chat</title>
-
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -13,14 +13,14 @@
 <body class="antialiased bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
     <div id="app-container" class="w-full max-w-5xl h-full md:h-[95vh] bg-white dark:bg-slate-800/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-2xl shadow-slate-300/30 dark:shadow-black/20 flex flex-col">
-
+        
         <div id="room-selection" class="flex flex-col items-center justify-center h-full p-6 text-center">
             <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-violet-500 rounded-3xl shadow-lg shadow-blue-500/20 mb-6 flex items-center justify-center">
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" /><path d="M15 7v2a2 2 0 012 2v5a2 2 0 01-2 2h-1v-2l-3 3v-3h-3a2 2 0 01-2-2V9a2 2 0 012-2h7z" /></svg>
             </div>
             <h1 class="text-4xl font-extrabold text-slate-800 dark:text-white mb-2">Helios Chat</h1>
             <p class="text-slate-500 dark:text-slate-400 mb-8 max-w-md">Join the public chat room or create your own private space to talk with friends.</p>
-
+            
             <div class="w-full max-w-sm space-y-4">
                 <button id="join-general-btn" data-room="general-chat" class="w-full bg-gradient-to-br from-green-500 to-emerald-500 text-white font-bold py-3 px-4 rounded-lg hover:from-green-600 hover:to-emerald-600 focus:outline-none focus:ring-4 focus:ring-green-500/50 transition-all duration-300 shadow-lg shadow-green-500/20 hover:shadow-xl hover:shadow-green-500/30 transform hover:-translate-y-0.5">
                     Join General Chat
@@ -69,13 +69,23 @@
             </div>
 
             <div class="flex flex-1 min-h-0 relative px-4 sm:px-0 pb-4 sm:pb-0">
-                <div class="flex flex-col flex-1 pr-0 sm:pr-4">
+                <div class="flex flex-col flex-1 pr-0">
                     <div id="messages" class="flex-1 overflow-y-auto p-4 bg-slate-100 dark:bg-slate-900/70 rounded-lg flex flex-col gap-y-6 mb-2">
                         </div>
                     <div id="typing-indicator" class="h-6 text-sm text-slate-500 dark:text-slate-400 italic pl-2 flex items-center gap-1"></div>
                     
                     <div id="message-emoji-picker" class="emoji-panel">
                         </div>
+
+                    <div id="reply-preview" class="hidden items-center justify-between p-2 bg-slate-200 dark:bg-slate-700 rounded-t-lg">
+                        <div class="text-sm">
+                            <p class="font-bold">Replying to <span id="reply-to-user"></span></p>
+                            <p id="reply-to-text" class="truncate text-xs"></p>
+                        </div>
+                        <button id="cancel-reply-btn" class="p-1 rounded-full hover:bg-slate-300 dark:hover:bg-slate-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
 
                     <form id="message-form" class="flex items-center gap-3 mt-2">
                         <button type="button" id="emoji-picker-btn" class="control-btn-icon">
@@ -92,29 +102,15 @@
                     </form>
                 </div>
 
-                <div id="user-list-panel-desktop" class="w-64 flex-col hidden sm:flex">
+                <div id="user-list-panel" class="w-full md:w-64 flex-col">
                     <h3 class="font-bold text-lg mb-2">Online Users</h3>
-                    <div id="user-list-desktop" class="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900/70 rounded-lg p-2 space-y-1">
+                    <div id="user-list" class="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900/70 rounded-lg p-2 space-y-1">
                         </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div id="user-list-modal" class="fixed inset-0 bg-black bg-opacity-50 flex-col items-center justify-center hidden z-40 sm:hidden">
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-lg w-11/12 max-w-sm flex flex-col max-h-[80vh]">
-            <div class="flex items-center justify-between p-4 border-b dark:border-slate-700">
-                <h3 class="font-bold text-lg">Online Users</h3>
-                <button id="close-user-list-btn" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div id="user-list-mobile" class="flex-1 overflow-y-auto p-2 space-y-1">
-            </div>
-        </div>
-    </div>
-
-
     <audio id="notification-sound" src="https://freesound.org/data/previews/573/573381_7021649-lq.mp3" preload="auto"></audio>
 
     <script type="module" src="script.js"></script>
