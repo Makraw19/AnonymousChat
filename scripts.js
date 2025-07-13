@@ -16,9 +16,17 @@ const appState = {
     typingTimeout: null,
 };
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chat-app';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+// --- Firebase Config ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCRa3Zz2t4a5IHxiRCeDYm3HLv53ch5QH8",
+  authDomain: "myanonymouschatapplication.firebaseapp.com",
+  projectId: "myanonymouschatapplication",
+  storageBucket: "myanonymouschatapplication.firebasestorage.app",
+  messagingSenderId: "1016335936400",
+  appId: "1:1016335936400:web:cd0ead42263f64d28d6115",
+  measurementId: "G-TDGEQXSQ73"
+};
+
 
 // --- DOM Element References ---
 const roomSelectionView = document.getElementById('room-selection');
