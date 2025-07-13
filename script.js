@@ -340,7 +340,7 @@ function renderUsers(users) {
     userCountBadge.textContent = users.length;
     users.forEach(uid => {
         const userElement = document.createElement('div');
-        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-slate-200', 'dark:hover:bg-slate-700/50', 'transition-colors');
+        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-slate-200', 'dark:hover:bg-slate-700/50', 'transition-colors', 'user-list-item');
         const isCurrentUser = uid === appState.userId;
         const displayName = appState.userNamesCache.get(uid) || '...';
 
@@ -500,76 +500,7 @@ joinRoomBtn.addEventListener('click', () => {
         roomIdInput.placeholder = "Please enter a valid room name!";
         setTimeout(() => {
             roomIdInput.classList.remove('border-red-500', 'ring-red-500');
-            roomIdInput.placeholder = "e.g., 'project-phoenix'";
-        }, 2500);
-    }
-});
-
-joinGeneralBtn.addEventListener('click', (e) => {
-    const roomId = e.currentTarget.dataset.room;
-    if (roomId && appState.userId) {
-        joinRoom(roomId);
-    }
-});
-
-leaveRoomBtn.addEventListener('click', leaveRoom);
-
-shareRoomBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const shareLink = window.location.href;
-    copyTextToClipboard(shareLink);
-    const originalText = shareRoomBtn.innerHTML;
-    shareRoomBtn.innerHTML = 'Copied!';
-    setTimeout(() => {
-        shareRoomBtn.innerHTML = originalText;
-    }, 2000);
-});
-
-toggleUsersBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    userListPanel.classList.toggle('active');
-});
-
-themeToggleBtn.addEventListener('click', toggleTheme);
-
-messageForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    sendMessage(messageInput.value);
-    messageInput.value = '';
-});
-
-messageInput.addEventListener('input', updateTypingStatus);
-
-userIdContainer.addEventListener('click', (e) => {
-    e.stopPropagation();
-    copyTextToClipboard(appState.userId);
-    copyFeedback.classList.remove('hidden');
-    setTimeout(() => copyFeedback.classList.add('hidden'), 2000);
-});
-
-document.body.addEventListener('click', (e) => {
-    if (!e.target.closest('.reactions-container')) {
-        document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
-    }
-    if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
-        userListPanel.classList.remove('active');
-    }
-});
-
-window.addEventListener('beforeunload', (e) => {
-    if (appState.roomId && appState.userId) {
-        deleteDoc(doc(appState.db, getOnlineUsersPath(appState.roomId), appState.userId));
-        deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
-    }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    joinRoomBtn.disabled = true;
-    joinGeneralBtn.disabled = true;
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    applyTheme(savedTheme);
-    initializeAndAuthenticate();
-});
+            roomIdInput.placeholder = "e
 
 
 
