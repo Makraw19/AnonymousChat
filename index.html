@@ -55,7 +55,7 @@
                         </button>
                      <button id="theme-toggle-btn" class="control-btn">
                         </button>
-                     <button id="toggle-users-btn" class="control-btn md:hidden relative">
+                     <button id="toggle-users-btn" class="control-btn relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         <span id="user-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"></span>
                     </button>
@@ -69,7 +69,7 @@
             </div>
 
             <div class="flex flex-1 min-h-0 relative px-4 sm:px-0 pb-4 sm:pb-0">
-                <div class="flex flex-col flex-1 pr-0 md:pr-4">
+                <div class="flex flex-col flex-1 pr-0">
                     <div id="messages" class="flex-1 overflow-y-auto p-4 bg-slate-100 dark:bg-slate-900/70 rounded-lg flex flex-col gap-y-6 mb-2">
                         </div>
                     <div id="typing-indicator" class="h-6 text-sm text-slate-500 dark:text-slate-400 italic pl-2 flex items-center gap-1"></div>
@@ -92,8 +92,8 @@
                     </form>
                 </div>
 
-                <div id="user-list-panel" class="w-full md:w-64 border-l-0 md:border-l border-slate-200 dark:border-slate-700/50 pl-0 md:pl-4 flex-col">
-                    <h3 class="font-bold text-lg mb-2 hidden md:block">Online Users</h3>
+                <div id="user-list-panel" class="w-full md:w-64 flex-col">
+                    <h3 class="font-bold text-lg mb-2">Online Users</h3>
                     <div id="user-list" class="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900/70 rounded-lg p-2 space-y-1">
                         </div>
                 </div>
