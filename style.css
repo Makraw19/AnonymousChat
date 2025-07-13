@@ -299,12 +299,24 @@ body {
     #chat-view .p-4 {
         padding: 1rem;
     }
-
-    /* Make the message input form more compact and touch-friendly. */
+    
+    /* This section contains the fixes for the message form layout */
     #message-form {
-        padding-bottom: 0.5rem; /* Add space at the screen bottom */
-        gap: 0.5rem; /* Reduce space between buttons */
+        padding: 0 0.5rem 0.5rem 0.5rem; /* Add horizontal padding */
+        gap: 0.5rem; /* Use a smaller gap between items */
     }
+    
+    #message-form .control-btn-icon,
+    #message-form button[type="submit"] {
+        padding: 0.625rem; /* Make buttons slightly smaller */
+        flex-shrink: 0; /* Prevent buttons from being squished */
+    }
+
+    #message-input {
+        min-width: 0; /* Allow the text input to shrink */
+    }
+    /* End of message form fixes */
+
 
     /* Ensure the user list is a true overlay that slides in from the right. */
     #user-list-panel {
