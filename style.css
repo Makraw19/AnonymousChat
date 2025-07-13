@@ -282,9 +282,31 @@ body {
     background-color: var(--bg-tertiary);
 }
 
+/* User list panel is now a slide-out overlay on all screen sizes */
+#user-list-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 250px; 
+    background-color: var(--bg-primary);
+    box-shadow: -4px 0 15px rgba(0,0,0,0.2);
+    transform: translateX(100%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    border-left: 1px solid var(--border-color);
+}
+
+#user-list-panel.active {
+    transform: translateX(0);
+}
+
 
 /* ============================================== */
-/* ==   Definitive Mobile Responsive Styles    == */
+/* ==   Mobile-Specific Responsive Styles      == */
 /* ============================================== */
 @media (max-width: 767px) {
     /* Allow the app to fill the entire screen on mobile devices. */
@@ -302,43 +324,18 @@ body {
     
     /* This section contains the fixes for the message form layout */
     #message-form {
-        padding: 0 0.5rem 0.5rem 0.5rem; /* Add horizontal padding */
-        gap: 0.5rem; /* Use a smaller gap between items */
+        padding: 0 0.5rem 0.5rem 0.5rem;
+        gap: 0.5rem;
     }
     
     #message-form .control-btn-icon,
     #message-form button[type="submit"] {
-        padding: 0.625rem; /* Make buttons slightly smaller */
-        flex-shrink: 0; /* Prevent buttons from being squished */
+        padding: 0.625rem;
+        flex-shrink: 0;
     }
 
     #message-input {
-        min-width: 0; /* Allow the text input to shrink */
-    }
-    /* End of message form fixes */
-
-
-    /* Ensure the user list is a true overlay that slides in from the right. */
-    #user-list-panel {
-        position: absolute; /* This is key for the overlay effect */
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 250px; 
-        background-color: var(--bg-primary);
-        box-shadow: -4px 0 15px rgba(0,0,0,0.2);
-        transform: translateX(100%);
-        transition: transform 0.3s ease-in-out;
-        z-index: 30;
-        display: flex;
-        flex-direction: column;
-        padding: 1rem;
-        border-left: 1px solid var(--border-color);
-    }
-
-    /* This class is toggled by JavaScript to show the panel. */
-    #user-list-panel.active {
-        transform: translateX(0);
+        min-width: 0;
     }
 }
 
