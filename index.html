@@ -3,95 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Anonymous Chat Room</title>
+    <title>Helios Chat</title>
     
     <!-- External Stylesheets -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 
 </head>
-<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+<body class="antialiased bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
-    <div id="app-container" class="w-full max-w-4xl h-full md:h-[90vh] bg-white dark:bg-slate-800 rounded-lg shadow-2xl flex flex-col p-4 sm:p-6">
+    <div id="app-container" class="w-full max-w-5xl h-full md:h-[95vh] bg-white dark:bg-slate-800/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-2xl shadow-slate-300/30 dark:shadow-black/20 flex flex-col">
         
         <!-- Room Selection View -->
-        <div id="room-selection" class="flex flex-col items-center justify-center h-full">
-            <h1 class="text-4xl font-bold text-slate-800 dark:text-white mb-2 text-center">Advanced Anonymous Chat</h1>
-            <p class="text-slate-500 dark:text-slate-400 mb-8">Join the public chat or create your own room.</p>
+        <div id="room-selection" class="flex flex-col items-center justify-center h-full p-6 text-center">
+            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-violet-500 rounded-3xl shadow-lg shadow-blue-500/20 mb-6 flex items-center justify-center">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" /><path d="M15 7v2a2 2 0 012 2v5a2 2 0 01-2 2h-1v-2l-3 3v-3h-3a2 2 0 01-2-2V9a2 2 0 012-2h7z" /></svg>
+            </div>
+            <h1 class="text-4xl font-extrabold text-slate-800 dark:text-white mb-2">Helios Chat</h1>
+            <p class="text-slate-500 dark:text-slate-400 mb-8 max-w-md">Join the public chat room or create your own private space to talk with friends.</p>
             
-            <div class="w-full max-w-sm">
-                <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-3 text-center">Join a Public Room</h3>
-                <button id="join-general-btn" data-room="general-chat" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-transform transform hover:scale-105">
+            <div class="w-full max-w-sm space-y-4">
+                <button id="join-general-btn" data-room="general-chat" class="w-full bg-gradient-to-br from-green-500 to-emerald-500 text-white font-bold py-3 px-4 rounded-lg hover:from-green-600 hover:to-emerald-600 focus:outline-none focus:ring-4 focus:ring-green-500/50 transition-all duration-300 shadow-lg shadow-green-500/20 hover:shadow-xl hover:shadow-green-500/30 transform hover:-translate-y-0.5">
                     Join General Chat
                 </button>
+                <div class="flex items-center">
+                    <div class="flex-grow border-t border-slate-300 dark:border-slate-700"></div>
+                    <span class="flex-shrink mx-4 text-xs text-slate-400 dark:text-slate-500 font-medium">OR</span>
+                    <div class="flex-grow border-t border-slate-300 dark:border-slate-700"></div>
+                </div>
+                <div class="relative">
+                    <input type="text" id="room-id-input" placeholder="Enter a custom room name..." class="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <button id="join-room-btn" class="absolute right-1 top-1/2 -translate-y-1/2 bg-gradient-to-br from-blue-500 to-violet-500 text-white font-bold py-2 px-4 rounded-lg hover:from-blue-600 hover:to-violet-600 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transform hover:-translate-y-1/2 hover:-translate-x-px">
+                        Join
+                    </button>
+                </div>
             </div>
-
-            <div class="my-6 w-full max-w-sm flex items-center">
-                <div class="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
-                <span class="flex-shrink mx-4 text-slate-400 dark:text-slate-500">OR</span>
-                <div class="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
-            </div>
-
-            <div class="w-full max-w-sm">
-                <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-3 text-center">Create a Private Room</h3>
-                <input type="text" id="room-id-input" placeholder="e.g., 'project-phoenix'" class="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                <button id="join-room-btn" class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
-                    Join Custom Room
-                </button>
-            </div>
-             <div id="loading-auth" class="mt-4 text-slate-500 dark:text-slate-400">Connecting & getting your name...</div>
+             <div id="loading-auth" class="mt-8 text-sm text-slate-500 dark:text-slate-400">Connecting...</div>
         </div>
 
         <!-- Chat View -->
         <div id="chat-view" class="hidden flex-col h-full">
-            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3 mb-4 gap-2">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/50 pb-4 mb-4 gap-2 p-4">
                 <div class="truncate">
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">Room: <span id="room-name" class="text-blue-500"></span></h2>
                     <p id="user-id-container" class="text-xs text-slate-500 dark:text-slate-400 mt-1 cursor-pointer" title="Click to copy ID">
                         <span id="user-name-display" class="font-semibold text-blue-500"></span>
-                        (<span id="user-id-display" class="font-mono bg-slate-200 dark:bg-slate-600 px-1 rounded"></span>)
+                        (<span id="user-id-display" class="font-mono bg-slate-200 dark:bg-slate-700 px-1 rounded"></span>)
                         <span id="copy-feedback" class="text-blue-500 font-semibold hidden">ID Copied!</span>
                     </p>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
-                     <button id="theme-toggle-btn" class="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold p-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center gap-2">
+                     <button id="theme-toggle-btn" class="control-btn">
                         <!-- Sun / Moon Icon will be inserted here by JS -->
                     </button>
-                     <button id="toggle-users-btn" class="md:hidden bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center gap-2">
+                     <button id="toggle-users-btn" class="control-btn md:hidden relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                        <span id="user-count-badge"></span>
+                        <span id="user-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"></span>
                     </button>
-                    <button id="share-room-btn" class="bg-indigo-500 text-white font-semibold p-2 sm:py-2 sm:px-4 rounded-lg hover:bg-indigo-600 transition flex items-center gap-2">
+                    <button id="share-room-btn" class="control-btn bg-indigo-500 text-white hover:bg-indigo-600">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
-                        <span class="hidden sm:inline">Share</span>
                     </button>
-                    <button id="leave-room-btn" class="bg-red-500 text-white font-semibold p-2 sm:py-2 sm:px-4 rounded-lg hover:bg-red-600 transition">
-                        <span class="hidden sm:inline">Leave</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="sm:hidden h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" /></svg>
+                    <button id="leave-room-btn" class="control-btn bg-red-500 text-white hover:bg-red-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" /></svg>
                     </button>
                 </div>
             </div>
 
-            <div class="flex flex-1 min-h-0 relative">
+            <div class="flex flex-1 min-h-0 relative px-4 sm:px-0 pb-4 sm:pb-0">
                 <!-- Main Chat Area -->
                 <div class="flex flex-col flex-1 pr-0 md:pr-4">
-                    <div id="messages" class="flex-1 overflow-y-auto p-4 bg-slate-100 dark:bg-slate-900 rounded-lg flex flex-col gap-y-6 mb-2">
+                    <div id="messages" class="flex-1 overflow-y-auto p-4 bg-slate-100 dark:bg-slate-900/70 rounded-lg flex flex-col gap-y-6 mb-2">
                         <!-- Messages will be dynamically inserted here -->
                     </div>
-                    <div id="typing-indicator" class="h-6 text-sm text-slate-500 dark:text-slate-400 italic pl-2"></div>
+                    <div id="typing-indicator" class="h-6 text-sm text-slate-500 dark:text-slate-400 italic pl-2 flex items-center gap-1"></div>
                     <form id="message-form" class="flex items-center gap-3 mt-2">
-                        <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off" class="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition" required>
-                        <button type="submit" class="bg-blue-600 text-white font-bold p-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
+                        <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off" class="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition" required>
+                        <button type="submit" class="bg-gradient-to-br from-blue-500 to-violet-500 text-white font-bold p-3 rounded-lg hover:from-blue-600 hover:to-violet-600 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transform hover:-translate-y-px">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                         </button>
                     </form>
                 </div>
 
                 <!-- Side Panel for Online Users -->
-                <div id="user-list-panel" class="w-full md:w-48 border-l-0 md:border-l border-slate-200 dark:border-slate-700 pl-0 md:pl-4 flex-col">
+                <div id="user-list-panel" class="w-full md:w-64 border-l-0 md:border-l border-slate-200 dark:border-slate-700/50 pl-0 md:pl-4 flex-col">
                     <h3 class="font-bold text-lg mb-2 hidden md:block">Online Users</h3>
-                    <div id="user-list" class="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900 rounded-lg p-2 space-y-2">
+                    <div id="user-list" class="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900/70 rounded-lg p-2 space-y-1">
                         <!-- User list will be populated here -->
                     </div>
                 </div>
@@ -105,5 +102,6 @@
     <script type="module" src="script.js"></script>
 </body>
 </html>
+
 
 
