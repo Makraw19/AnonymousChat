@@ -1,0 +1,42 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+#messages {
+    scroll-behavior: smooth;
+}
+
+.message {
+    max-width: 80%;
+    transition: all 0.2s ease-in-out;
+}
+
+.message-user {
+    align-self: flex-end;
+    background-color: #2563eb; /* blue-600 from Tailwind */
+    color: white;
+}
+
+.message-other {
+    align-self: flex-start;
+    background-color: #e5e7eb; /* gray-200 from Tailwind */
+    color: #1f2937; /* gray-800 from Tailwind */
+}
+
+/* For custom scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9; /* slate-100 from Tailwind */
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* slate-300 from Tailwind */
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* slate-400 from Tailwind */
+}
