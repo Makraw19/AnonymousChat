@@ -149,8 +149,6 @@ async function fetchUserNames(userIds) {
 function setupListeners(roomId) {
     const messagesQuery = query(collection(appState.db, getMessagesPath(roomId)));
     appState.listeners.messages = onSnapshot(messagesQuery, async (snap) => {
-        const messages = [];
-        const senderIds = [];
         let newMessages = false;
         snap.docChanges().forEach(change => {
             if (change.type === "added") {
@@ -160,7 +158,13 @@ function setupListeners(roomId) {
                 }
             }
         });
+        
+        if (newMessages) {
+            notificationSound.play().catch(e => console.log("Sound play failed:", e));
+        }
 
+        const messages = [];
+        const senderIds = [];
         snap.forEach(doc => {
             const data = doc.data();
             messages.push({ id: doc.id, ...data });
@@ -170,9 +174,6 @@ function setupListeners(roomId) {
             }
         });
         
-        if (newMessages) {
-            notificationSound.play().catch(e => console.log("Sound play failed:", e));
-        }
         appState.isInitialLoad = false;
 
         await fetchUserNames(senderIds);
@@ -229,7 +230,7 @@ function renderMessages(messages) {
         const displayName = appState.userNamesCache.get(msg.senderId) || '...';
         
         const messageWrapper = document.createElement('div');
-        messageWrapper.classList.add('flex', 'items-start', 'gap-3');
+        messageWrapper.classList.add('message-wrapper', 'flex', 'items-end', 'gap-3');
         if (isCurrentUser) messageWrapper.classList.add('flex-row-reverse');
         
         const avatar = document.createElement('div');
@@ -238,7 +239,7 @@ function renderMessages(messages) {
         avatar.textContent = displayName.charAt(0).toUpperCase();
 
         const messageBubble = document.createElement('div');
-        messageBubble.classList.add('flex', 'flex-col');
+        messageBubble.classList.add('message-bubble', 'flex', 'flex-col', 'max-w-xs', 'sm:max-w-md');
         
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', 'p-3', 'rounded-xl', 'shadow-md', 'w-fit');
@@ -249,6 +250,7 @@ function renderMessages(messages) {
         senderIdDisplay.textContent = isCurrentUser ? 'You' : displayName;
         
         const messageText = document.createElement('p');
+        messageText.classList.add('text-sm');
         messageText.textContent = msg.text;
         
         const footerContainer = document.createElement('div');
@@ -263,10 +265,10 @@ function renderMessages(messages) {
             readReceipt.classList.add('read-receipt');
             const seenByCount = msg.seenBy?.length || 0;
             if (seenByCount >= appState.onlineUsers.length && appState.onlineUsers.length > 1) {
-                readReceipt.textContent = '✓✓';
+                readReceipt.innerHTML = '&#10003;&#10003;'; // Double check
                 readReceipt.classList.add('seen-by-all');
             } else if (seenByCount > 1) {
-                readReceipt.textContent = '✓';
+                readReceipt.innerHTML = '&#10003;'; // Single check
             }
         }
         
@@ -323,9 +325,9 @@ function renderMessages(messages) {
 
         reactionsContainer.appendChild(addReactionButton);
         reactionsContainer.appendChild(emojiPicker);
-        messageElement.appendChild(reactionsContainer);
-        
         messageBubble.appendChild(messageElement);
+        messageBubble.appendChild(reactionsContainer);
+        
         messageWrapper.appendChild(avatar);
         messageWrapper.appendChild(messageBubble);
         messagesContainer.appendChild(messageWrapper);
@@ -338,12 +340,12 @@ function renderUsers(users) {
     userCountBadge.textContent = users.length;
     users.forEach(uid => {
         const userElement = document.createElement('div');
-        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-slate-200', 'dark:hover:bg-slate-700/50', 'transition-colors');
         const isCurrentUser = uid === appState.userId;
         const displayName = appState.userNamesCache.get(uid) || '...';
 
         const avatar = document.createElement('div');
-        avatar.classList.add('avatar', 'mr-2');
+        avatar.classList.add('avatar', 'mr-3');
         avatar.style.backgroundColor = getAvatarColor(uid);
         avatar.textContent = displayName.charAt(0).toUpperCase();
 
@@ -360,12 +362,16 @@ function renderUsers(users) {
 
 function renderTypingIndicator(typingUsers) {
     if (typingUsers.length === 0) {
-        typingIndicator.textContent = '';
-    } else if (typingUsers.length === 1) {
-        const name = appState.userNamesCache.get(typingUsers[0]) || 'Someone';
-        typingIndicator.textContent = `${name} is typing...`;
+        typingIndicator.innerHTML = '';
     } else {
-        typingIndicator.textContent = 'Several people are typing...';
+        const name = appState.userNamesCache.get(typingUsers[0]) || 'Someone';
+        const text = typingUsers.length > 1 ? 'Several people are typing' : `${name} is typing`;
+        typingIndicator.innerHTML = `
+            <span class="text-sm italic">${text}</span>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        `;
     }
 }
 
@@ -508,7 +514,8 @@ joinGeneralBtn.addEventListener('click', (e) => {
 
 leaveRoomBtn.addEventListener('click', leaveRoom);
 
-shareRoomBtn.addEventListener('click', () => {
+shareRoomBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     const shareLink = window.location.href;
     copyTextToClipboard(shareLink);
     const originalText = shareRoomBtn.innerHTML;
@@ -533,7 +540,8 @@ messageForm.addEventListener('submit', (e) => {
 
 messageInput.addEventListener('input', updateTypingStatus);
 
-userIdContainer.addEventListener('click', () => {
+userIdContainer.addEventListener('click', (e) => {
+    e.stopPropagation();
     copyTextToClipboard(appState.userId);
     copyFeedback.classList.remove('hidden');
     setTimeout(() => copyFeedback.classList.add('hidden'), 2000);
@@ -562,5 +570,6 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(savedTheme);
     initializeAndAuthenticate();
 });
+
 
 
