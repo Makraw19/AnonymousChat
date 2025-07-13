@@ -44,6 +44,8 @@ const muteBtn = document.getElementById('mute-btn');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const fileInput = document.getElementById('file-input');
+const emojiPickerBtn = document.getElementById('emoji-picker-btn');
+const messageEmojiPicker = document.getElementById('message-emoji-picker');
 const messagesContainer = document.getElementById('messages');
 const roomNameDisplay = document.getElementById('room-name');
 const userNameDisplay = document.getElementById('user-name-display');
@@ -64,6 +66,9 @@ const getRoomPath = (roomId) => `/artifacts/${appId}/public/data/chat_rooms/${ro
 const getMessagesPath = (roomId) => `${getRoomPath(roomId)}/messages`;
 const getOnlineUsersPath = (roomId) => `${getRoomPath(roomId)}/users`;
 const getTypingPath = (roomId) => `${getRoomPath(roomId)}/typing`;
+
+// --- Emojis ---
+const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪'];
 
 // --- Name & Avatar Generation ---
 const adjectives = ["Agile", "Bright", "Clever", "Dapper", "Eager", "Fancy", "Gentle", "Happy", "Jolly", "Keen", "Lucky", "Merry", "Nice", "Proud", "Silly", "Witty"];
@@ -498,7 +503,7 @@ async function updateTypingStatus() {
     }, 3000);
 }
 
-// --- Theme & Mute Management ---
+// --- Theme, Mute & Emoji Management ---
 function applyTheme(theme) {
     if (theme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -522,6 +527,18 @@ function renderMuteButton() {
     } else {
         muteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`; // Unmuted Icon
     }
+}
+
+function initializeEmojiPicker() {
+    emojis.forEach(emoji => {
+        const emojiSpan = document.createElement('span');
+        emojiSpan.textContent = emoji;
+        emojiSpan.addEventListener('click', () => {
+            messageInput.value += emoji;
+            messageInput.focus();
+        });
+        messageEmojiPicker.appendChild(emojiSpan);
+    });
 }
 
 // --- Event Handlers ---
@@ -571,6 +588,11 @@ muteBtn.addEventListener('click', () => {
     appState.isMuted = !appState.isMuted;
     localStorage.setItem('chat_is_muted', appState.isMuted);
     renderMuteButton();
+});
+
+emojiPickerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    messageEmojiPicker.classList.toggle('active');
 });
 
 messageForm.addEventListener('submit', (e) => {
@@ -635,7 +657,6 @@ userNameDisplay.addEventListener('click', () => {
         userNameDisplay.innerHTML = '';
         userNameDisplay.textContent = appState.currentUserDisplayName;
         
-        // Cleanup listeners
         input.removeEventListener('blur', finishEditing);
         input.removeEventListener('keydown', handleKeydown);
     };
@@ -644,7 +665,7 @@ userNameDisplay.addEventListener('click', () => {
         if (e.key === 'Enter') {
             input.blur();
         } else if (e.key === 'Escape') {
-            input.value = appState.currentUserDisplayName; // Revert
+            input.value = appState.currentUserDisplayName;
             input.blur();
         }
     };
@@ -656,6 +677,9 @@ userNameDisplay.addEventListener('click', () => {
 document.body.addEventListener('click', (e) => {
     if (!e.target.closest('.reactions-container')) {
         document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
+    }
+    if (!e.target.closest('#message-emoji-picker') && !e.target.closest('#emoji-picker-btn')) {
+        messageEmojiPicker.classList.remove('active');
     }
     if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
         userListPanel.classList.remove('active');
@@ -678,7 +702,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     appState.isMuted = localStorage.getItem('chat_is_muted') === 'true';
     renderMuteButton();
-
+    
+    initializeEmojiPicker();
     initializeAndAuthenticate();
 });
 
