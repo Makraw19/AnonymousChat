@@ -1,21 +1,23 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, collection, addDoc, onSnapshot, query, serverTimestamp, deleteDoc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
 // --- App State and Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyCRa3Zz2t4a5IHxiRCeDYm3HLv53ch5QH8",
   authDomain: "myanonymouschatapplication.firebaseapp.com",
   projectId: "myanonymouschatapplication",
-  storageBucket: "myanonymouschatapplication.firebasestorage.app",
+  storageBucket: "myanonymouschatapplication.appspot.com",
   messagingSenderId: "1016335936400",
   appId: "1:1016335936400:web:cd0ead42263f64d28d6115",
   measurementId: "G-TDGEQXSQ73"
 };
 
 const appState = {
-    app: null, auth: null, db: null, userId: null, roomId: null,
+    app: null, auth: null, db: null, storage: null, userId: null, roomId: null,
     currentUserDisplayName: null,
+    isMuted: false,
     userNamesCache: new Map(),
     onlineUsers: [],
     listeners: {
@@ -27,7 +29,6 @@ const appState = {
     isInitialLoad: true,
 };
 
-const initialAuthToken = null;
 const appId = 'default-chat-app';
 
 // --- DOM Element References ---
@@ -39,8 +40,10 @@ const roomIdInput = document.getElementById('room-id-input');
 const leaveRoomBtn = document.getElementById('leave-room-btn');
 const shareRoomBtn = document.getElementById('share-room-btn');
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const muteBtn = document.getElementById('mute-btn');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
+const fileInput = document.getElementById('file-input');
 const messagesContainer = document.getElementById('messages');
 const roomNameDisplay = document.getElementById('room-name');
 const userNameDisplay = document.getElementById('user-name-display');
@@ -89,6 +92,7 @@ async function initializeAndAuthenticate() {
         appState.app = initializeApp(firebaseConfig);
         appState.auth = getAuth(appState.app);
         appState.db = getFirestore(appState.app);
+        appState.storage = getStorage(appState.app);
 
         onAuthStateChanged(appState.auth, async (user) => {
             if (user) {
@@ -104,8 +108,7 @@ async function initializeAndAuthenticate() {
                 checkUrlForRoom();
             } else {
                 try {
-                    if (initialAuthToken) await signInWithCustomToken(appState.auth, initialAuthToken);
-                    else await signInAnonymously(appState.auth);
+                    await signInAnonymously(appState.auth);
                 } catch (error) {
                     console.error("Sign-in error:", error);
                     loadingAuth.textContent = "Authentication failed.";
@@ -122,11 +125,11 @@ async function getOrCreateUserProfile(userId) {
     const userDocRef = doc(appState.db, getUsersBasePath(), userId);
     const userDocSnap = await getDoc(userDocRef);
 
-    if (userDocSnap.exists()) {
+    if (userDocSnap.exists() && userDocSnap.data().displayName) {
         appState.currentUserDisplayName = userDocSnap.data().displayName;
     } else {
         const newName = generateRandomName();
-        await setDoc(userDocRef, { displayName: newName });
+        await setDoc(userDocRef, { displayName: newName }, { merge: true });
         appState.currentUserDisplayName = newName;
     }
     appState.userNamesCache.set(userId, appState.currentUserDisplayName);
@@ -141,7 +144,7 @@ async function fetchUserNames(userIds) {
 
     userDocs.forEach(docSnap => {
         if (docSnap.exists()) {
-            appState.userNamesCache.set(docSnap.id, docSnap.data().displayName);
+            appState.userNamesCache.set(docSnap.id, docSnap.data().displayName || 'Anonymous');
         }
     });
 }
@@ -159,7 +162,7 @@ function setupListeners(roomId) {
             }
         });
         
-        if (newMessages) {
+        if (newMessages && !appState.isMuted) {
             notificationSound.play().catch(e => console.log("Sound play failed:", e));
         }
 
@@ -168,7 +171,7 @@ function setupListeners(roomId) {
         snap.forEach(doc => {
             const data = doc.data();
             messages.push({ id: doc.id, ...data });
-            senderIds.push(data.senderId);
+            if(data.senderId) senderIds.push(data.senderId);
             if (!data.seenBy?.includes(appState.userId)) {
                 markAsSeen(doc.id);
             }
@@ -205,20 +208,28 @@ function cleanupListeners() {
     appState.isInitialLoad = true;
 }
 
-function copyTextToClipboard(text) {
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.position = "fixed";
-    textArea.style.opacity = "0";
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    try {
-        document.execCommand('copy');
-    } catch (err) {
-        console.error('Fallback: Oops, unable to copy', err);
+async function copyTextToClipboard(text) {
+     if (!navigator.clipboard) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        document.body.removeChild(textArea);
+        return;
     }
-    document.body.removeChild(textArea);
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+    }
 }
 
 // --- Rendering Functions ---
@@ -248,10 +259,29 @@ function renderMessages(messages) {
         const senderIdDisplay = document.createElement('p');
         senderIdDisplay.classList.add('text-xs', 'font-bold', 'opacity-70', 'mb-1');
         senderIdDisplay.textContent = isCurrentUser ? 'You' : displayName;
-        
-        const messageText = document.createElement('p');
-        messageText.classList.add('text-sm');
-        messageText.textContent = msg.text;
+
+        const messageContent = document.createElement('div');
+        if (msg.text) {
+            const p = document.createElement('p');
+            p.classList.add('text-sm');
+            p.textContent = msg.text;
+            messageContent.appendChild(p);
+        } else if (msg.fileURL) {
+             if (msg.fileType && msg.fileType.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = msg.fileURL;
+                img.classList.add('max-w-xs', 'rounded-lg', 'mt-2', 'cursor-pointer');
+                img.onclick = () => window.open(msg.fileURL, '_blank');
+                messageContent.appendChild(img);
+             } else {
+                const a = document.createElement('a');
+                a.href = msg.fileURL;
+                a.target = '_blank';
+                a.textContent = msg.fileName || 'Download File';
+                a.classList.add('text-blue-400', 'underline');
+                messageContent.appendChild(a);
+             }
+        }
         
         const footerContainer = document.createElement('div');
         footerContainer.classList.add('flex', 'items-center', 'justify-end', 'mt-2');
@@ -276,7 +306,7 @@ function renderMessages(messages) {
         footerContainer.appendChild(readReceipt);
 
         messageElement.appendChild(senderIdDisplay);
-        messageElement.appendChild(messageText);
+        messageElement.appendChild(messageContent);
         messageElement.appendChild(footerContainer);
         
         const reactionsContainer = document.createElement('div');
@@ -430,6 +460,7 @@ async function sendMessage(text) {
             timestamp: serverTimestamp(),
             seenBy: [appState.userId]
         });
+        messageInput.value = '';
         await deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
     } catch (error) {
         console.error("Error sending message: ", error);
@@ -442,14 +473,11 @@ async function toggleReaction(messageId, emoji) {
     if (messageSnap.exists()) {
         const reactions = messageSnap.data().reactions || {};
         const reactors = reactions[emoji] || [];
+        const reactionPath = `reactions.${emoji}`;
         if (reactors.includes(appState.userId)) {
-            await updateDoc(messageRef, {
-                [`reactions.${emoji}`]: arrayRemove(appState.userId)
-            });
+            await updateDoc(messageRef, { [reactionPath]: arrayRemove(appState.userId) });
         } else {
-            await updateDoc(messageRef, {
-                [`reactions.${emoji}`]: arrayUnion(appState.userId)
-            });
+            await updateDoc(messageRef, { [reactionPath]: arrayUnion(appState.userId) });
         }
     }
 }
@@ -470,7 +498,7 @@ async function updateTypingStatus() {
     }, 3000);
 }
 
-// --- Theme Management ---
+// --- Theme & Mute Management ---
 function applyTheme(theme) {
     if (theme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -488,6 +516,13 @@ function toggleTheme() {
     applyTheme(newTheme);
 }
 
+function renderMuteButton() {
+    if (appState.isMuted) {
+        muteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`; // Muted Icon
+    } else {
+        muteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`; // Unmuted Icon
+    }
+}
 
 // --- Event Handlers ---
 
@@ -500,7 +535,152 @@ joinRoomBtn.addEventListener('click', () => {
         roomIdInput.placeholder = "Please enter a valid room name!";
         setTimeout(() => {
             roomIdInput.classList.remove('border-red-500', 'ring-red-500');
-            roomIdInput.placeholder = "e
+            roomIdInput.placeholder = "e.g., 'project-phoenix'";
+        }, 2500);
+    }
+});
+
+joinGeneralBtn.addEventListener('click', (e) => {
+    const roomId = e.currentTarget.dataset.room;
+    if (roomId && appState.userId) {
+        joinRoom(roomId);
+    }
+});
+
+leaveRoomBtn.addEventListener('click', leaveRoom);
+
+shareRoomBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const shareLink = window.location.href;
+    await copyTextToClipboard(shareLink);
+    const originalText = shareRoomBtn.innerHTML;
+    shareRoomBtn.innerHTML = 'Copied!';
+    setTimeout(() => {
+        shareRoomBtn.innerHTML = originalText;
+    }, 2000);
+});
+
+toggleUsersBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    userListPanel.classList.toggle('active');
+});
+
+themeToggleBtn.addEventListener('click', toggleTheme);
+
+muteBtn.addEventListener('click', () => {
+    appState.isMuted = !appState.isMuted;
+    localStorage.setItem('chat_is_muted', appState.isMuted);
+    renderMuteButton();
+});
+
+messageForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    sendMessage(messageInput.value);
+});
+
+messageInput.addEventListener('input', updateTypingStatus);
+
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+        const storageRef = ref(appState.storage, `chat_files/${appState.roomId}/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+
+        await addDoc(collection(appState.db, getMessagesPath(appState.roomId)), {
+            senderId: appState.userId,
+            timestamp: serverTimestamp(),
+            seenBy: [appState.userId],
+            fileURL: downloadURL,
+            fileName: file.name,
+            fileType: file.type
+        });
+    } catch (error) {
+        console.error("Error uploading file:", error);
+        alert("Failed to upload file.");
+    }
+    fileInput.value = ''; // Reset file input
+});
+
+userIdContainer.addEventListener('click', async (e) => {
+    if (e.target.id === 'user-name-display') return; // Profile edit handles this
+    e.stopPropagation();
+    await copyTextToClipboard(appState.userId);
+    copyFeedback.classList.remove('hidden');
+    setTimeout(() => copyFeedback.classList.add('hidden'), 2000);
+});
+
+userNameDisplay.addEventListener('click', () => {
+    const currentName = userNameDisplay.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.className = 'bg-transparent border-b border-blue-500 focus:outline-none w-32';
+
+    userNameDisplay.innerHTML = '';
+    userNameDisplay.appendChild(input);
+    input.focus();
+
+    const finishEditing = async () => {
+        const newName = input.value.trim();
+        if (newName && newName !== appState.currentUserDisplayName) {
+            const userDocRef = doc(appState.db, getUsersBasePath(), appState.userId);
+            await updateDoc(userDocRef, { displayName: newName });
+            
+            appState.currentUserDisplayName = newName;
+            appState.userNamesCache.set(appState.userId, newName);
+        }
+        userNameDisplay.innerHTML = '';
+        userNameDisplay.textContent = appState.currentUserDisplayName;
+        
+        // Cleanup listeners
+        input.removeEventListener('blur', finishEditing);
+        input.removeEventListener('keydown', handleKeydown);
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Enter') {
+            input.blur();
+        } else if (e.key === 'Escape') {
+            input.value = appState.currentUserDisplayName; // Revert
+            input.blur();
+        }
+    };
+
+    input.addEventListener('blur', finishEditing);
+    input.addEventListener('keydown', handleKeydown);
+});
+
+document.body.addEventListener('click', (e) => {
+    if (!e.target.closest('.reactions-container')) {
+        document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
+    }
+    if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
+        userListPanel.classList.remove('active');
+    }
+});
+
+window.addEventListener('beforeunload', () => {
+    if (appState.roomId && appState.userId) {
+        deleteDoc(doc(appState.db, getOnlineUsersPath(appState.roomId), appState.userId));
+        deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    joinRoomBtn.disabled = true;
+    joinGeneralBtn.disabled = true;
+    
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+    
+    appState.isMuted = localStorage.getItem('chat_is_muted') === 'true';
+    renderMuteButton();
+
+    initializeAndAuthenticate();
+});
 
 
 
