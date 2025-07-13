@@ -249,7 +249,12 @@ function renderMessages(messages) {
         
         const messageWrapper = document.createElement('div');
         messageWrapper.classList.add('message-wrapper', 'flex', 'items-end', 'gap-3');
-        if (isCurrentUser) messageWrapper.classList.add('flex-row-reverse');
+        if (isCurrentUser) {
+            messageWrapper.classList.add('flex-row-reverse');
+            messageWrapper.classList.add('message-user');
+        } else {
+            messageWrapper.classList.add('message-other');
+        }
         
         const avatar = document.createElement('div');
         avatar.classList.add('avatar');
@@ -614,7 +619,12 @@ messageForm.addEventListener('submit', (e) => {
     sendMessage(messageInput.value);
 });
 
-messageInput.addEventListener('input', updateTypingStatus);
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage(messageInput.value);
+    }
+});
 
 fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
