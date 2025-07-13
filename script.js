@@ -3,11 +3,6 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, doc, collection, addDoc, onSnapshot, query, serverTimestamp, deleteDoc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --- App State and Config ---
-
-// =================================================================================
-// TODO: PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE
-// You can get this from your project's settings in the Firebase Console.
-// =================================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyCRa3Zz2t4a5IHxiRCeDYm3HLv53ch5QH8",
   authDomain: "myanonymouschatapplication.firebaseapp.com",
@@ -17,8 +12,6 @@ const firebaseConfig = {
   appId: "1:1016335936400:web:cd0ead42263f64d28d6115",
   measurementId: "G-TDGEQXSQ73"
 };
-// =================================================================================
-
 
 const appState = {
     app: null, auth: null, db: null, userId: null, roomId: null,
@@ -31,9 +24,9 @@ const appState = {
         typing: null,
     },
     typingTimeout: null,
+    isInitialLoad: true,
 };
 
-// This variable is needed by the auth logic. For GitHub deployment, it should be null.
 const initialAuthToken = null;
 const appId = 'default-chat-app';
 
@@ -45,6 +38,7 @@ const joinGeneralBtn = document.getElementById('join-general-btn');
 const roomIdInput = document.getElementById('room-id-input');
 const leaveRoomBtn = document.getElementById('leave-room-btn');
 const shareRoomBtn = document.getElementById('share-room-btn');
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const messagesContainer = document.getElementById('messages');
@@ -59,6 +53,7 @@ const userListPanel = document.getElementById('user-list-panel');
 const toggleUsersBtn = document.getElementById('toggle-users-btn');
 const userCountBadge = document.getElementById('user-count-badge');
 const typingIndicator = document.getElementById('typing-indicator');
+const notificationSound = document.getElementById('notification-sound');
 
 // --- Firestore Path Helpers ---
 const getUsersBasePath = () => `/artifacts/${appId}/public/data/users`;
@@ -67,13 +62,20 @@ const getMessagesPath = (roomId) => `${getRoomPath(roomId)}/messages`;
 const getOnlineUsersPath = (roomId) => `${getRoomPath(roomId)}/users`;
 const getTypingPath = (roomId) => `${getRoomPath(roomId)}/typing`;
 
-// --- Name Generation ---
+// --- Name & Avatar Generation ---
 const adjectives = ["Agile", "Bright", "Clever", "Dapper", "Eager", "Fancy", "Gentle", "Happy", "Jolly", "Keen", "Lucky", "Merry", "Nice", "Proud", "Silly", "Witty"];
 const nouns = ["Aardvark", "Badger", "Capybara", "Dolphin", "Elephant", "Fox", "Giraffe", "Hippo", "Iguana", "Jaguar", "Koala", "Lemur", "Meerkat", "Narwhal", "Ocelot", "Panda"];
+const avatarColors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#ec4899'];
+
 function generateRandomName() {
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
     return `${adj} ${noun}`;
+}
+
+function getAvatarColor(userId) {
+    const hash = userId.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
+    return avatarColors[Math.abs(hash) % avatarColors.length];
 }
 
 // --- Core Functions ---
@@ -81,7 +83,6 @@ function generateRandomName() {
 async function initializeAndAuthenticate() {
     if (!firebaseConfig || !firebaseConfig.apiKey) {
         loadingAuth.innerHTML = `<span class="text-red-500 font-bold">Error: Firebase config is missing in script.js!</span> Please add it to run the app.`;
-        console.error("Firebase configuration is missing or incomplete in script.js");
         return;
     }
     try {
@@ -103,11 +104,8 @@ async function initializeAndAuthenticate() {
                 checkUrlForRoom();
             } else {
                 try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(appState.auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(appState.auth);
-                    }
+                    if (initialAuthToken) await signInWithCustomToken(appState.auth, initialAuthToken);
+                    else await signInAnonymously(appState.auth);
                 } catch (error) {
                     console.error("Sign-in error:", error);
                     loadingAuth.textContent = "Authentication failed.";
@@ -153,6 +151,16 @@ function setupListeners(roomId) {
     appState.listeners.messages = onSnapshot(messagesQuery, async (snap) => {
         const messages = [];
         const senderIds = [];
+        let newMessages = false;
+        snap.docChanges().forEach(change => {
+            if (change.type === "added") {
+                const data = change.doc.data();
+                if (data.senderId !== appState.userId && !appState.isInitialLoad) {
+                    newMessages = true;
+                }
+            }
+        });
+
         snap.forEach(doc => {
             const data = doc.data();
             messages.push({ id: doc.id, ...data });
@@ -161,6 +169,12 @@ function setupListeners(roomId) {
                 markAsSeen(doc.id);
             }
         });
+        
+        if (newMessages) {
+            notificationSound.play().catch(e => console.log("Sound play failed:", e));
+        }
+        appState.isInitialLoad = false;
+
         await fetchUserNames(senderIds);
         messages.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
         renderMessages(messages);
@@ -187,26 +201,23 @@ function setupListeners(roomId) {
 
 function cleanupListeners() {
     Object.values(appState.listeners).forEach(unsubscribe => unsubscribe && unsubscribe());
+    appState.isInitialLoad = true;
 }
 
 function copyTextToClipboard(text) {
     const textArea = document.createElement("textarea");
     textArea.value = text;
-    textArea.style.top = "0";
-    textArea.style.left = "0";
     textArea.style.position = "fixed";
     textArea.style.opacity = "0";
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
-    let success = false;
     try {
-        success = document.execCommand('copy');
+        document.execCommand('copy');
     } catch (err) {
         console.error('Fallback: Oops, unable to copy', err);
     }
     document.body.removeChild(textArea);
-    return success;
 }
 
 // --- Rendering Functions ---
@@ -218,10 +229,19 @@ function renderMessages(messages) {
         const displayName = appState.userNamesCache.get(msg.senderId) || '...';
         
         const messageWrapper = document.createElement('div');
-        messageWrapper.classList.add('flex', 'flex-col');
+        messageWrapper.classList.add('flex', 'items-start', 'gap-3');
+        if (isCurrentUser) messageWrapper.classList.add('flex-row-reverse');
+        
+        const avatar = document.createElement('div');
+        avatar.classList.add('avatar');
+        avatar.style.backgroundColor = getAvatarColor(msg.senderId);
+        avatar.textContent = displayName.charAt(0).toUpperCase();
+
+        const messageBubble = document.createElement('div');
+        messageBubble.classList.add('flex', 'flex-col');
         
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message', 'p-3', 'rounded-xl', 'shadow-md');
+        messageElement.classList.add('message', 'p-3', 'rounded-xl', 'shadow-md', 'w-fit');
         messageElement.classList.add(isCurrentUser ? 'message-user' : 'message-other');
 
         const senderIdDisplay = document.createElement('p');
@@ -304,8 +324,10 @@ function renderMessages(messages) {
         reactionsContainer.appendChild(addReactionButton);
         reactionsContainer.appendChild(emojiPicker);
         messageElement.appendChild(reactionsContainer);
-
-        messageWrapper.appendChild(messageElement);
+        
+        messageBubble.appendChild(messageElement);
+        messageWrapper.appendChild(avatar);
+        messageWrapper.appendChild(messageBubble);
         messagesContainer.appendChild(messageWrapper);
     });
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -316,16 +338,22 @@ function renderUsers(users) {
     userCountBadge.textContent = users.length;
     users.forEach(uid => {
         const userElement = document.createElement('div');
-        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-gray-200');
+        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
         const isCurrentUser = uid === appState.userId;
         const displayName = appState.userNamesCache.get(uid) || '...';
 
-        userElement.innerHTML = `
-            <span class="w-3 h-3 bg-green-400 rounded-full mr-2 flex-shrink-0"></span>
-            <span class="text-sm font-medium truncate ${isCurrentUser ? 'text-blue-600' : 'text-gray-700'}">
-                ${isCurrentUser ? 'You' : displayName}
-            </span>
-        `;
+        const avatar = document.createElement('div');
+        avatar.classList.add('avatar', 'mr-2');
+        avatar.style.backgroundColor = getAvatarColor(uid);
+        avatar.textContent = displayName.charAt(0).toUpperCase();
+
+        const nameSpan = document.createElement('span');
+        nameSpan.classList.add('text-sm', 'font-medium', 'truncate');
+        nameSpan.classList.toggle('text-blue-500', isCurrentUser);
+        nameSpan.textContent = isCurrentUser ? 'You' : displayName;
+
+        userElement.appendChild(avatar);
+        userElement.appendChild(nameSpan);
         userListContainer.appendChild(userElement);
     });
 }
@@ -436,6 +464,25 @@ async function updateTypingStatus() {
     }, 3000);
 }
 
+// --- Theme Management ---
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        themeToggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`; // Moon
+    } else {
+        document.documentElement.classList.remove('dark');
+        themeToggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`; // Sun
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('theme', newTheme);
+    applyTheme(newTheme);
+}
+
+
 // --- Event Handlers ---
 
 joinRoomBtn.addEventListener('click', () => {
@@ -463,19 +510,20 @@ leaveRoomBtn.addEventListener('click', leaveRoom);
 
 shareRoomBtn.addEventListener('click', () => {
     const shareLink = window.location.href;
-    if (copyTextToClipboard(shareLink)) {
-        const originalText = shareRoomBtn.innerHTML;
-        shareRoomBtn.textContent = 'Copied!';
-        setTimeout(() => {
-            shareRoomBtn.innerHTML = originalText;
-        }, 2000);
-    }
+    copyTextToClipboard(shareLink);
+    const originalText = shareRoomBtn.innerHTML;
+    shareRoomBtn.innerHTML = 'Copied!';
+    setTimeout(() => {
+        shareRoomBtn.innerHTML = originalText;
+    }, 2000);
 });
 
 toggleUsersBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     userListPanel.classList.toggle('active');
 });
+
+themeToggleBtn.addEventListener('click', toggleTheme);
 
 messageForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -486,13 +534,11 @@ messageForm.addEventListener('submit', (e) => {
 messageInput.addEventListener('input', updateTypingStatus);
 
 userIdContainer.addEventListener('click', () => {
-    if (copyTextToClipboard(appState.userId)) {
-        copyFeedback.classList.remove('hidden');
-        setTimeout(() => copyFeedback.classList.add('hidden'), 2000);
-    }
+    copyTextToClipboard(appState.userId);
+    copyFeedback.classList.remove('hidden');
+    setTimeout(() => copyFeedback.classList.add('hidden'), 2000);
 });
 
-// Close emoji pickers and user list when clicking anywhere else
 document.body.addEventListener('click', (e) => {
     if (!e.target.closest('.reactions-container')) {
         document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
@@ -512,6 +558,9 @@ window.addEventListener('beforeunload', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     joinRoomBtn.disabled = true;
     joinGeneralBtn.disabled = true;
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
     initializeAndAuthenticate();
 });
+
 
