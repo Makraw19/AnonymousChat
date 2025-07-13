@@ -1,10 +1,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, collection, addDoc, onSnapshot, query, serverTimestamp, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, collection, addDoc, onSnapshot, query, serverTimestamp, deleteDoc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --- App State and Config ---
 const appState = {
     app: null, auth: null, db: null, userId: null, roomId: null,
+    currentUserDisplayName: null,
+    userNamesCache: new Map(),
+    onlineUsers: [],
     listeners: {
         messages: null,
         users: null,
@@ -29,18 +32,32 @@ const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const messagesContainer = document.getElementById('messages');
 const roomNameDisplay = document.getElementById('room-name');
+const userNameDisplay = document.getElementById('user-name-display');
 const userIdDisplay = document.getElementById('user-id-display');
 const userIdContainer = document.getElementById('user-id-container');
 const copyFeedback = document.getElementById('copy-feedback');
 const loadingAuth = document.getElementById('loading-auth');
 const userListContainer = document.getElementById('user-list');
+const userListPanel = document.getElementById('user-list-panel');
+const toggleUsersBtn = document.getElementById('toggle-users-btn');
+const userCountBadge = document.getElementById('user-count-badge');
 const typingIndicator = document.getElementById('typing-indicator');
 
 // --- Firestore Path Helpers ---
+const getUsersBasePath = () => `/artifacts/${appId}/public/data/users`;
 const getRoomPath = (roomId) => `/artifacts/${appId}/public/data/chat_rooms/${roomId}`;
 const getMessagesPath = (roomId) => `${getRoomPath(roomId)}/messages`;
-const getUsersPath = (roomId) => `${getRoomPath(roomId)}/users`;
+const getOnlineUsersPath = (roomId) => `${getRoomPath(roomId)}/users`;
 const getTypingPath = (roomId) => `${getRoomPath(roomId)}/typing`;
+
+// --- Name Generation ---
+const adjectives = ["Agile", "Bright", "Clever", "Dapper", "Eager", "Fancy", "Gentle", "Happy", "Jolly", "Keen", "Lucky", "Merry", "Nice", "Proud", "Silly", "Witty"];
+const nouns = ["Aardvark", "Badger", "Capybara", "Dolphin", "Elephant", "Fox", "Giraffe", "Hippo", "Iguana", "Jaguar", "Koala", "Lemur", "Meerkat", "Narwhal", "Ocelot", "Panda"];
+function generateRandomName() {
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${adj} ${noun}`;
+}
 
 // --- Core Functions ---
 
@@ -57,11 +74,15 @@ async function initializeAndAuthenticate() {
         onAuthStateChanged(appState.auth, async (user) => {
             if (user) {
                 appState.userId = user.uid;
-                userIdDisplay.textContent = appState.userId;
+                await getOrCreateUserProfile(user.uid);
+                
+                userIdDisplay.textContent = user.uid.substring(0, 6) + '...';
+                userNameDisplay.textContent = appState.currentUserDisplayName;
+
                 loadingAuth.style.display = 'none';
                 joinRoomBtn.disabled = false;
                 joinGeneralBtn.disabled = false;
-                checkUrlForRoom(); // Check for a room in the URL after auth
+                checkUrlForRoom();
             } else {
                 try {
                     if (initialAuthToken) await signInWithCustomToken(appState.auth, initialAuthToken);
@@ -78,32 +99,68 @@ async function initializeAndAuthenticate() {
     }
 }
 
+async function getOrCreateUserProfile(userId) {
+    const userDocRef = doc(appState.db, getUsersBasePath(), userId);
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (userDocSnap.exists()) {
+        appState.currentUserDisplayName = userDocSnap.data().displayName;
+    } else {
+        const newName = generateRandomName();
+        await setDoc(userDocRef, { displayName: newName });
+        appState.currentUserDisplayName = newName;
+    }
+    appState.userNamesCache.set(userId, appState.currentUserDisplayName);
+}
+
+async function fetchUserNames(userIds) {
+    const idsToFetch = [...new Set(userIds)].filter(id => !appState.userNamesCache.has(id));
+    if (idsToFetch.length === 0) return;
+
+    const fetchPromises = idsToFetch.map(id => getDoc(doc(appState.db, getUsersBasePath(), id)));
+    const userDocs = await Promise.all(fetchPromises);
+
+    userDocs.forEach(docSnap => {
+        if (docSnap.exists()) {
+            appState.userNamesCache.set(docSnap.id, docSnap.data().displayName);
+        }
+    });
+}
+
 function setupListeners(roomId) {
-    // Messages Listener
     const messagesQuery = query(collection(appState.db, getMessagesPath(roomId)));
-    appState.listeners.messages = onSnapshot(messagesQuery, snap => {
+    appState.listeners.messages = onSnapshot(messagesQuery, async (snap) => {
         const messages = [];
-        snap.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
+        const senderIds = [];
+        snap.forEach(doc => {
+            const data = doc.data();
+            messages.push({ id: doc.id, ...data });
+            senderIds.push(data.senderId);
+            if (!data.seenBy?.includes(appState.userId)) {
+                markAsSeen(doc.id);
+            }
+        });
+        await fetchUserNames(senderIds);
         messages.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
         renderMessages(messages);
     });
 
-    // Online Users Listener
-    const usersQuery = query(collection(appState.db, getUsersPath(roomId)));
-    appState.listeners.users = onSnapshot(usersQuery, snap => {
-        const users = [];
-        snap.forEach(doc => users.push(doc.id));
-        renderUsers(users);
+    const usersQuery = query(collection(appState.db, getOnlineUsersPath(roomId)));
+    appState.listeners.users = onSnapshot(usersQuery, async (snap) => {
+        appState.onlineUsers = [];
+        snap.forEach(doc => appState.onlineUsers.push(doc.id));
+        await fetchUserNames(appState.onlineUsers);
+        renderUsers(appState.onlineUsers);
     });
 
-    // Typing Indicator Listener
     const typingQuery = query(collection(appState.db, getTypingPath(roomId)));
-    appState.listeners.typing = onSnapshot(typingQuery, snap => {
-        const typingUsers = [];
+    appState.listeners.typing = onSnapshot(typingQuery, async (snap) => {
+        const typingUserIds = [];
         snap.forEach(doc => {
-            if (doc.id !== appState.userId) typingUsers.push(doc.id);
+            if (doc.id !== appState.userId) typingUserIds.push(doc.id);
         });
-        renderTypingIndicator(typingUsers);
+        await fetchUserNames(typingUserIds);
+        renderTypingIndicator(typingUserIds);
     });
 }
 
@@ -111,32 +168,22 @@ function cleanupListeners() {
     Object.values(appState.listeners).forEach(unsubscribe => unsubscribe && unsubscribe());
 }
 
-/**
- * Copies text to the clipboard using a fallback method for security restrictions.
- * @param {string} text The text to copy.
- * @returns {boolean} True if successful, false otherwise.
- */
 function copyTextToClipboard(text) {
     const textArea = document.createElement("textarea");
     textArea.value = text;
-    
-    // Style to be invisible
     textArea.style.top = "0";
     textArea.style.left = "0";
     textArea.style.position = "fixed";
     textArea.style.opacity = "0";
-
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
-
     let success = false;
     try {
         success = document.execCommand('copy');
     } catch (err) {
         console.error('Fallback: Oops, unable to copy', err);
     }
-
     document.body.removeChild(textArea);
     return success;
 }
@@ -147,6 +194,8 @@ function renderMessages(messages) {
     messagesContainer.innerHTML = '';
     messages.forEach(msg => {
         const isCurrentUser = msg.senderId === appState.userId;
+        const displayName = appState.userNamesCache.get(msg.senderId) || '...';
+        
         const messageWrapper = document.createElement('div');
         messageWrapper.classList.add('flex', 'flex-col');
         
@@ -156,18 +205,90 @@ function renderMessages(messages) {
 
         const senderIdDisplay = document.createElement('p');
         senderIdDisplay.classList.add('text-xs', 'font-bold', 'opacity-70', 'mb-1');
-        senderIdDisplay.textContent = isCurrentUser ? 'You' : `User ${msg.senderId.substring(0, 6)}...`;
+        senderIdDisplay.textContent = isCurrentUser ? 'You' : displayName;
         
         const messageText = document.createElement('p');
         messageText.textContent = msg.text;
+        
+        const footerContainer = document.createElement('div');
+        footerContainer.classList.add('flex', 'items-center', 'justify-end', 'mt-2');
 
         const timestamp = document.createElement('p');
-        timestamp.classList.add('text-xs', 'opacity-50', 'mt-2', 'text-right');
+        timestamp.classList.add('text-xs', 'opacity-50');
         timestamp.textContent = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        
+        const readReceipt = document.createElement('span');
+        if (isCurrentUser) {
+            readReceipt.classList.add('read-receipt');
+            const seenByCount = msg.seenBy?.length || 0;
+            if (seenByCount >= appState.onlineUsers.length && appState.onlineUsers.length > 1) {
+                readReceipt.textContent = '✓✓';
+                readReceipt.classList.add('seen-by-all');
+            } else if (seenByCount > 1) {
+                readReceipt.textContent = '✓';
+            }
+        }
+        
+        footerContainer.appendChild(timestamp);
+        footerContainer.appendChild(readReceipt);
 
         messageElement.appendChild(senderIdDisplay);
         messageElement.appendChild(messageText);
-        messageElement.appendChild(timestamp);
+        messageElement.appendChild(footerContainer);
+        
+        // --- Start Reaction Rendering Logic ---
+        const reactionsContainer = document.createElement('div');
+        reactionsContainer.classList.add('reactions-container');
+        const reactions = msg.reactions || {};
+        
+        // Render existing reactions
+        for (const emoji in reactions) {
+            const reactors = reactions[emoji];
+            if (reactors && reactors.length > 0) {
+                const reactionElement = document.createElement('span');
+                reactionElement.classList.add('reaction');
+                reactionElement.textContent = `${emoji} ${reactors.length}`;
+                if (reactors.includes(appState.userId)) {
+                    reactionElement.classList.add('reacted-by-user');
+                }
+                reactionElement.addEventListener('click', (e) => { e.stopPropagation(); toggleReaction(msg.id, emoji); });
+                reactionsContainer.appendChild(reactionElement);
+            }
+        }
+
+        // Add Reaction Button & Picker
+        const addReactionButton = document.createElement('button');
+        addReactionButton.textContent = '+';
+        addReactionButton.classList.add('reaction', 'add-reaction-btn');
+        
+        const emojiPicker = document.createElement('div');
+        emojiPicker.classList.add('emoji-picker');
+        
+        const defaultEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+        defaultEmojis.forEach(emoji => {
+            const emojiOption = document.createElement('span');
+            emojiOption.classList.add('reaction');
+            emojiOption.textContent = emoji;
+            emojiOption.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleReaction(msg.id, emoji);
+                emojiPicker.classList.remove('active');
+            });
+            emojiPicker.appendChild(emojiOption);
+        });
+
+        addReactionButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close other pickers
+            document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
+            emojiPicker.classList.toggle('active');
+        });
+
+        reactionsContainer.appendChild(addReactionButton);
+        reactionsContainer.appendChild(emojiPicker);
+        messageElement.appendChild(reactionsContainer);
+        // --- End Reaction Rendering Logic ---
+
         messageWrapper.appendChild(messageElement);
         messagesContainer.appendChild(messageWrapper);
     });
@@ -176,14 +297,17 @@ function renderMessages(messages) {
 
 function renderUsers(users) {
     userListContainer.innerHTML = '';
+    userCountBadge.textContent = users.length;
     users.forEach(uid => {
         const userElement = document.createElement('div');
-        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'bg-white');
+        userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-gray-200');
         const isCurrentUser = uid === appState.userId;
+        const displayName = appState.userNamesCache.get(uid) || '...';
+
         userElement.innerHTML = `
-            <span class="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
-            <span class="text-sm font-medium ${isCurrentUser ? 'text-blue-600' : 'text-gray-700'}">
-                ${isCurrentUser ? 'You' : `User ${uid.substring(0, 6)}...`}
+            <span class="w-3 h-3 bg-green-400 rounded-full mr-2 flex-shrink-0"></span>
+            <span class="text-sm font-medium truncate ${isCurrentUser ? 'text-blue-600' : 'text-gray-700'}">
+                ${isCurrentUser ? 'You' : displayName}
             </span>
         `;
         userListContainer.appendChild(userElement);
@@ -194,7 +318,8 @@ function renderTypingIndicator(typingUsers) {
     if (typingUsers.length === 0) {
         typingIndicator.textContent = '';
     } else if (typingUsers.length === 1) {
-        typingIndicator.textContent = `User ${typingUsers[0].substring(0,6)}... is typing...`;
+        const name = appState.userNamesCache.get(typingUsers[0]) || 'Someone';
+        typingIndicator.textContent = `${name} is typing...`;
     } else {
         typingIndicator.textContent = 'Several people are typing...';
     }
@@ -205,12 +330,9 @@ function renderTypingIndicator(typingUsers) {
 async function joinRoom(roomId) {
     appState.roomId = roomId;
     roomNameDisplay.textContent = roomId;
-    
-    // Update URL hash
     window.history.pushState(null, '', '#room=' + roomId);
 
-    await setDoc(doc(appState.db, getUsersPath(roomId), appState.userId), {});
-    
+    await setDoc(doc(appState.db, getOnlineUsersPath(roomId), appState.userId), {});
     setupListeners(roomId);
     
     roomSelectionView.style.display = 'none';
@@ -221,13 +343,12 @@ async function joinRoom(roomId) {
 async function leaveRoom() {
     if (!appState.roomId || !appState.userId) return;
     
-    await deleteDoc(doc(appState.db, getUsersPath(appState.roomId), appState.userId));
+    await deleteDoc(doc(appState.db, getOnlineUsersPath(appState.roomId), appState.userId));
     await deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
 
     cleanupListeners();
     appState.roomId = null;
     
-    // Clear URL hash
     window.history.pushState(null, '', window.location.pathname);
 
     chatView.classList.add('hidden');
@@ -237,13 +358,14 @@ async function leaveRoom() {
     messagesContainer.innerHTML = '';
     userListContainer.innerHTML = '';
     typingIndicator.textContent = '';
+    userListPanel.classList.remove('active');
 }
 
 function checkUrlForRoom() {
     const hash = window.location.hash;
     if (hash.startsWith('#room=')) {
         const roomIdFromUrl = hash.substring(6);
-        if (roomIdFromUrl) {
+        if (roomIdFromUrl && appState.userId) {
             joinRoom(roomIdFromUrl);
         }
     }
@@ -255,7 +377,8 @@ async function sendMessage(text) {
         await addDoc(collection(appState.db, getMessagesPath(appState.roomId)), {
             text: text,
             senderId: appState.userId,
-            timestamp: serverTimestamp()
+            timestamp: serverTimestamp(),
+            seenBy: [appState.userId]
         });
         await deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
     } catch (error) {
@@ -263,16 +386,38 @@ async function sendMessage(text) {
     }
 }
 
+async function toggleReaction(messageId, emoji) {
+    const messageRef = doc(appState.db, getMessagesPath(appState.roomId), messageId);
+    const messageSnap = await getDoc(messageRef);
+    if (messageSnap.exists()) {
+        const reactions = messageSnap.data().reactions || {};
+        const reactors = reactions[emoji] || [];
+        if (reactors.includes(appState.userId)) {
+            await updateDoc(messageRef, {
+                [`reactions.${emoji}`]: arrayRemove(appState.userId)
+            });
+        } else {
+            await updateDoc(messageRef, {
+                [`reactions.${emoji}`]: arrayUnion(appState.userId)
+            });
+        }
+    }
+}
+
+async function markAsSeen(messageId) {
+    const messageRef = doc(appState.db, getMessagesPath(appState.roomId), messageId);
+    await updateDoc(messageRef, {
+        seenBy: arrayUnion(appState.userId)
+    });
+}
+
 async function updateTypingStatus() {
     if (!appState.userId || !appState.roomId) return;
-    
     if (appState.typingTimeout) clearTimeout(appState.typingTimeout);
-    
     await setDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId), {});
-
     appState.typingTimeout = setTimeout(async () => {
         await deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
-    }, 3000); // User is considered "not typing" after 3 seconds
+    }, 3000);
 }
 
 // --- Event Handlers ---
@@ -311,6 +456,11 @@ shareRoomBtn.addEventListener('click', () => {
     }
 });
 
+toggleUsersBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    userListPanel.classList.toggle('active');
+});
+
 messageForm.addEventListener('submit', (e) => {
     e.preventDefault();
     sendMessage(messageInput.value);
@@ -326,16 +476,23 @@ userIdContainer.addEventListener('click', () => {
     }
 });
 
-// Best-effort cleanup on tab close
+// Close emoji pickers and user list when clicking anywhere else
+document.body.addEventListener('click', (e) => {
+    if (!e.target.closest('.reactions-container')) {
+        document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
+    }
+    if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
+        userListPanel.classList.remove('active');
+    }
+});
+
 window.addEventListener('beforeunload', (e) => {
     if (appState.roomId && appState.userId) {
-        // This is not guaranteed to run, but it's the best we can do
-        deleteDoc(doc(appState.db, getUsersPath(appState.roomId), appState.userId));
+        deleteDoc(doc(appState.db, getOnlineUsersPath(appState.roomId), appState.userId));
         deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
     }
 });
 
-// --- Initial Load ---
 document.addEventListener('DOMContentLoaded', () => {
     joinRoomBtn.disabled = true;
     joinGeneralBtn.disabled = true;
