@@ -9,18 +9,19 @@ body {
 .message {
     max-width: 80%;
     transition: all 0.2s ease-in-out;
+    position: relative;
 }
 
 .message-user {
     align-self: flex-end;
-    background-color: #2563eb; /* blue-600 from Tailwind */
+    background-color: #2563eb; /* blue-600 */
     color: white;
 }
 
 .message-other {
     align-self: flex-start;
-    background-color: #e5e7eb; /* gray-200 from Tailwind */
-    color: #1f2937; /* gray-800 from Tailwind */
+    background-color: #e5e7eb; /* gray-200 */
+    color: #1f2937; /* gray-800 */
 }
 
 /* For custom scrollbars */
@@ -29,14 +30,120 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f5f9; /* slate-100 from Tailwind */
+    background: #f1f5f9; /* slate-100 */
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1; /* slate-300 from Tailwind */
+    background: #cbd5e1; /* slate-300 */
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8; /* slate-400 from Tailwind */
+    background: #94a3b8; /* slate-400 */
 }
+
+/* Mobile User List Panel */
+@media (max-width: 767px) {
+    #user-list-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 200px;
+        background-color: white;
+        box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+        z-index: 30;
+        display: flex; /* Ensure it's a flex container */
+        padding: 1rem;
+    }
+
+    #user-list-panel.active {
+        transform: translateX(0);
+    }
+}
+
+
+/* Message Reactions */
+.reactions-container {
+    position: absolute;
+    bottom: -15px;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: white;
+    border-radius: 1rem;
+    padding: 2px 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+.message-user .reactions-container {
+    left: auto;
+    right: 10px;
+}
+
+.reaction {
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 1rem;
+    background-color: #f1f5f9; /* slate-100 */
+    transition: transform 0.1s ease-in-out;
+    font-size: 12px;
+}
+
+.reaction:hover {
+    transform: scale(1.15);
+}
+
+.reaction.reacted-by-user {
+    background-color: #60a5fa; /* blue-400 */
+    color: white;
+}
+
+.add-reaction-btn {
+    background-color: #e5e7eb;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #4b5563;
+}
+
+.emoji-picker {
+    position: absolute;
+    display: none;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    padding: 8px;
+    gap: 6px;
+    bottom: 25px;
+    z-index: 20;
+}
+
+.message-user .emoji-picker {
+    right: 0;
+}
+
+.emoji-picker.active {
+    display: flex;
+}
+
+/* Read Receipts */
+.read-receipt {
+    font-size: 14px;
+    color: #94a3b8; /* slate-400 */
+    margin-left: 8px;
+}
+
+.read-receipt.seen-by-all {
+    color: #3b82f6; /* blue-500 */
+}
+
