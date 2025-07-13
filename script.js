@@ -37,10 +37,8 @@ const chatView = document.getElementById('chat-view');
 const joinRoomBtn = document.getElementById('join-room-btn');
 const joinGeneralBtn = document.getElementById('join-general-btn');
 const roomIdInput = document.getElementById('room-id-input');
-const leaveRoomBtnDesktop = document.getElementById('leave-room-btn-desktop');
-const leaveRoomBtnMobile = document.getElementById('leave-room-btn-mobile');
-const shareRoomBtnDesktop = document.getElementById('share-room-btn-desktop');
-const shareRoomBtnMobile = document.getElementById('share-room-btn-mobile');
+const leaveRoomBtn = document.getElementById('leave-room-btn');
+const shareRoomBtn = document.getElementById('share-room-btn');
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
 const muteBtn = document.getElementById('mute-btn');
 const messageForm = document.getElementById('message-form');
@@ -55,14 +53,13 @@ const userIdDisplay = document.getElementById('user-id-display');
 const userIdContainer = document.getElementById('user-id-container');
 const copyFeedback = document.getElementById('copy-feedback');
 const loadingAuth = document.getElementById('loading-auth');
-const userListContainer = document.getElementById('user-list');
-const userListPanel = document.getElementById('user-list-panel');
+const userListMobileContainer = document.getElementById('user-list-mobile');
+const userListModal = document.getElementById('user-list-modal');
+const closeUserListBtn = document.getElementById('close-user-list-btn');
 const toggleUsersBtn = document.getElementById('toggle-users-btn');
 const userCountBadge = document.getElementById('user-count-badge');
 const typingIndicator = document.getElementById('typing-indicator');
 const notificationSound = document.getElementById('notification-sound');
-const moreOptionsBtn = document.getElementById('more-options-btn');
-const moreOptionsDropdown = document.getElementById('more-options-dropdown');
 
 
 // --- Firestore Path Helpers ---
@@ -376,7 +373,7 @@ function renderMessages(messages) {
 }
 
 function renderUsers(users) {
-    userListContainer.innerHTML = '';
+    userListMobileContainer.innerHTML = '';
     userCountBadge.textContent = users.length;
     users.forEach(uid => {
         const userElement = document.createElement('div');
@@ -396,7 +393,7 @@ function renderUsers(users) {
 
         userElement.appendChild(avatar);
         userElement.appendChild(nameSpan);
-        userListContainer.appendChild(userElement);
+        userListMobileContainer.appendChild(userElement);
     });
 }
 
@@ -446,9 +443,9 @@ async function leaveRoom() {
     roomSelectionView.style.display = 'flex';
     roomIdInput.value = '';
     messagesContainer.innerHTML = '';
-    userListContainer.innerHTML = '';
+    userListMobileContainer.innerHTML = '';
     typingIndicator.textContent = '';
-    userListPanel.classList.remove('active');
+    userListModal.classList.add('hidden');
 }
 
 function checkUrlForRoom() {
@@ -569,10 +566,8 @@ joinGeneralBtn.addEventListener('click', (e) => {
     }
 });
 
-leaveRoomBtnDesktop.addEventListener('click', leaveRoom);
-leaveRoomBtnMobile.addEventListener('click', leaveRoom);
-
-const shareRoomAction = async (e) => {
+leaveRoomBtn.addEventListener('click', leaveRoom);
+shareRoomBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     const shareLink = window.location.href;
     await copyTextToClipboard(shareLink);
@@ -581,14 +576,18 @@ const shareRoomAction = async (e) => {
     setTimeout(() => {
         e.currentTarget.innerHTML = originalText;
     }, 2000);
-};
-
-shareRoomBtnDesktop.addEventListener('click', shareRoomAction);
-shareRoomBtnMobile.addEventListener('click', shareRoomAction);
+});
 
 toggleUsersBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    userListPanel.classList.toggle('active');
+    userListModal.classList.remove('hidden');
+    userListModal.classList.add('flex');
+});
+
+closeUserListBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    userListModal.classList.add('hidden');
+    userListModal.classList.remove('flex');
 });
 
 themeToggleBtn.addEventListener('click', toggleTheme);
@@ -683,11 +682,6 @@ userNameDisplay.addEventListener('click', () => {
     input.addEventListener('keydown', handleKeydown);
 });
 
-moreOptionsBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    moreOptionsDropdown.classList.toggle('hidden');
-});
-
 document.body.addEventListener('click', (e) => {
     if (!e.target.closest('.reactions-container')) {
         document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
@@ -695,11 +689,9 @@ document.body.addEventListener('click', (e) => {
     if (!e.target.closest('#message-emoji-picker') && !e.target.closest('#emoji-picker-btn')) {
         messageEmojiPicker.classList.remove('active');
     }
-    if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
-        userListPanel.classList.remove('active');
-    }
-    if (!e.target.closest('#more-options-btn')) {
-        moreOptionsDropdown.classList.add('hidden');
+    if (!e.target.closest('#user-list-modal') && !e.target.closest('#toggle-users-btn')) {
+        userListModal.classList.add('hidden');
+        userListModal.classList.remove('flex');
     }
 });
 
