@@ -3,6 +3,23 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, doc, collection, addDoc, onSnapshot, query, serverTimestamp, deleteDoc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --- App State and Config ---
+
+// =================================================================================
+// TODO: PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE
+// You can get this from your project's settings in the Firebase Console.
+// =================================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCRa3Zz2t4a5IHxiRCeDYm3HLv53ch5QH8",
+  authDomain: "myanonymouschatapplication.firebaseapp.com",
+  projectId: "myanonymouschatapplication",
+  storageBucket: "myanonymouschatapplication.firebasestorage.app",
+  messagingSenderId: "1016335936400",
+  appId: "1:1016335936400:web:cd0ead42263f64d28d6115",
+  measurementId: "G-TDGEQXSQ73"
+};
+// =================================================================================
+
+
 const appState = {
     app: null, auth: null, db: null, userId: null, roomId: null,
     currentUserDisplayName: null,
@@ -16,17 +33,9 @@ const appState = {
     typingTimeout: null,
 };
 
-// --- Firebase Config ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCRa3Zz2t4a5IHxiRCeDYm3HLv53ch5QH8",
-  authDomain: "myanonymouschatapplication.firebaseapp.com",
-  projectId: "myanonymouschatapplication",
-  storageBucket: "myanonymouschatapplication.firebasestorage.app",
-  messagingSenderId: "1016335936400",
-  appId: "1:1016335936400:web:cd0ead42263f64d28d6115",
-  measurementId: "G-TDGEQXSQ73"
-};
-
+// This variable is needed by the auth logic. For GitHub deployment, it should be null.
+const initialAuthToken = null;
+const appId = 'default-chat-app';
 
 // --- DOM Element References ---
 const roomSelectionView = document.getElementById('room-selection');
@@ -70,8 +79,9 @@ function generateRandomName() {
 // --- Core Functions ---
 
 async function initializeAndAuthenticate() {
-    if (Object.keys(firebaseConfig).length === 0) {
-        loadingAuth.textContent = "Error: App configuration is missing.";
+    if (!firebaseConfig || !firebaseConfig.apiKey) {
+        loadingAuth.innerHTML = `<span class="text-red-500 font-bold">Error: Firebase config is missing in script.js!</span> Please add it to run the app.`;
+        console.error("Firebase configuration is missing or incomplete in script.js");
         return;
     }
     try {
@@ -93,8 +103,11 @@ async function initializeAndAuthenticate() {
                 checkUrlForRoom();
             } else {
                 try {
-                    if (initialAuthToken) await signInWithCustomToken(appState.auth, initialAuthToken);
-                    else await signInAnonymously(appState.auth);
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(appState.auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(appState.auth);
+                    }
                 } catch (error) {
                     console.error("Sign-in error:", error);
                     loadingAuth.textContent = "Authentication failed.";
@@ -244,12 +257,10 @@ function renderMessages(messages) {
         messageElement.appendChild(messageText);
         messageElement.appendChild(footerContainer);
         
-        // --- Start Reaction Rendering Logic ---
         const reactionsContainer = document.createElement('div');
         reactionsContainer.classList.add('reactions-container');
         const reactions = msg.reactions || {};
         
-        // Render existing reactions
         for (const emoji in reactions) {
             const reactors = reactions[emoji];
             if (reactors && reactors.length > 0) {
@@ -264,7 +275,6 @@ function renderMessages(messages) {
             }
         }
 
-        // Add Reaction Button & Picker
         const addReactionButton = document.createElement('button');
         addReactionButton.textContent = '+';
         addReactionButton.classList.add('reaction', 'add-reaction-btn');
@@ -287,7 +297,6 @@ function renderMessages(messages) {
 
         addReactionButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Close other pickers
             document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
             emojiPicker.classList.toggle('active');
         });
@@ -295,7 +304,6 @@ function renderMessages(messages) {
         reactionsContainer.appendChild(addReactionButton);
         reactionsContainer.appendChild(emojiPicker);
         messageElement.appendChild(reactionsContainer);
-        // --- End Reaction Rendering Logic ---
 
         messageWrapper.appendChild(messageElement);
         messagesContainer.appendChild(messageWrapper);
@@ -491,7 +499,6 @@ document.body.addEventListener('click', (e) => {
     }
     if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
         userListPanel.classList.remove('active');
-        
     }
 });
 
@@ -507,3 +514,4 @@ document.addEventListener('DOMContentLoaded', () => {
     joinGeneralBtn.disabled = true;
     initializeAndAuthenticate();
 });
+
