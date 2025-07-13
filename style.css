@@ -284,11 +284,11 @@ body {
 
 /* User list panel is now a slide-out overlay on all screen sizes */
 #user-list-panel {
-    position: absolute;
+    position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
-    width: 250px; 
+    width: 280px; 
     background-color: var(--bg-primary);
     box-shadow: -4px 0 15px rgba(0,0,0,0.2);
     transform: translateX(100%);
@@ -315,6 +315,10 @@ body {
         max-height: 100dvh;
         border-radius: 0;
         border: none;
+    }
+
+    #chat-view {
+        overflow: hidden;
     }
 
     /* Adjust padding for the main chat view to give content more space. */
