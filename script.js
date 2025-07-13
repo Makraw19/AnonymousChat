@@ -27,6 +27,7 @@ const appState = {
     },
     typingTimeout: null,
     isInitialLoad: true,
+    replyToMessageId: null,
 };
 
 const appId = 'default-chat-app';
@@ -53,14 +54,17 @@ const userIdDisplay = document.getElementById('user-id-display');
 const userIdContainer = document.getElementById('user-id-container');
 const copyFeedback = document.getElementById('copy-feedback');
 const loadingAuth = document.getElementById('loading-auth');
-const userListDesktopContainer = document.getElementById('user-list-desktop');
-const userListMobileContainer = document.getElementById('user-list-mobile');
-const userListModal = document.getElementById('user-list-modal');
-const closeUserListBtn = document.getElementById('close-user-list-btn');
+const userListContainer = document.getElementById('user-list');
+const userListPanel = document.getElementById('user-list-panel');
 const toggleUsersBtn = document.getElementById('toggle-users-btn');
 const userCountBadge = document.getElementById('user-count-badge');
 const typingIndicator = document.getElementById('typing-indicator');
 const notificationSound = document.getElementById('notification-sound');
+const replyPreview = document.getElementById('reply-preview');
+const replyToUser = document.getElementById('reply-to-user');
+const replyToText = document.getElementById('reply-to-text');
+const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+
 
 // --- Firestore Path Helpers ---
 const getUsersBasePath = () => `/artifacts/${appId}/public/data/users`;
@@ -249,12 +253,7 @@ function renderMessages(messages) {
         
         const messageWrapper = document.createElement('div');
         messageWrapper.classList.add('message-wrapper', 'flex', 'items-end', 'gap-3');
-        if (isCurrentUser) {
-            messageWrapper.classList.add('flex-row-reverse');
-            messageWrapper.classList.add('message-user');
-        } else {
-            messageWrapper.classList.add('message-other');
-        }
+        if (isCurrentUser) messageWrapper.classList.add('flex-row-reverse');
         
         const avatar = document.createElement('div');
         avatar.classList.add('avatar');
@@ -267,6 +266,20 @@ function renderMessages(messages) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', 'p-3', 'rounded-xl', 'shadow-md', 'w-fit');
         messageElement.classList.add(isCurrentUser ? 'message-user' : 'message-other');
+
+        if (msg.replyTo) {
+            const originalMessage = messages.find(m => m.id === msg.replyTo);
+            if (originalMessage) {
+                const quotedMessage = document.createElement('div');
+                quotedMessage.classList.add('quoted-message');
+                const originalSender = appState.userNamesCache.get(originalMessage.senderId) || '...';
+                quotedMessage.innerHTML = `
+                    <p class="font-bold text-xs">${originalSender}</p>
+                    <p class="text-xs truncate">${originalMessage.text || 'File'}</p>
+                `;
+                messageElement.appendChild(quotedMessage);
+            }
+        }
 
         const senderIdDisplay = document.createElement('p');
         senderIdDisplay.classList.add('text-xs', 'font-bold', 'opacity-70', 'mb-1');
@@ -316,6 +329,20 @@ function renderMessages(messages) {
         
         footerContainer.appendChild(timestamp);
         footerContainer.appendChild(readReceipt);
+
+        const replyBtn = document.createElement('button');
+        replyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18c-3.3 0-6-2.7-6-6s2.7-6 6-6h9a4 4 0 0 1 0 8h-1"></path><polyline points="12 14 16 18 12 22"></polyline></svg>`;
+        replyBtn.classList.add('reply-btn');
+        replyBtn.addEventListener('click', () => {
+            appState.replyToMessageId = msg.id;
+            replyToUser.textContent = displayName;
+            replyToText.textContent = msg.text || 'File';
+            replyPreview.classList.remove('hidden');
+            replyPreview.classList.add('flex');
+            messageInput.focus();
+        });
+        messageBubble.appendChild(replyBtn);
+
 
         messageElement.appendChild(senderIdDisplay);
         messageElement.appendChild(messageContent);
@@ -378,10 +405,8 @@ function renderMessages(messages) {
 }
 
 function renderUsers(users) {
-    userListDesktopContainer.innerHTML = '';
-    userListMobileContainer.innerHTML = '';
+    userListContainer.innerHTML = '';
     userCountBadge.textContent = users.length;
-
     users.forEach(uid => {
         const userElement = document.createElement('div');
         userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-slate-200', 'dark:hover:bg-slate-700/50', 'transition-colors', 'user-list-item');
@@ -400,9 +425,7 @@ function renderUsers(users) {
 
         userElement.appendChild(avatar);
         userElement.appendChild(nameSpan);
-
-        userListDesktopContainer.appendChild(userElement.cloneNode(true));
-        userListMobileContainer.appendChild(userElement);
+        userListContainer.appendChild(userElement);
     });
 }
 
@@ -452,10 +475,9 @@ async function leaveRoom() {
     roomSelectionView.style.display = 'flex';
     roomIdInput.value = '';
     messagesContainer.innerHTML = '';
-    userListDesktopContainer.innerHTML = '';
-    userListMobileContainer.innerHTML = '';
+    userListContainer.innerHTML = '';
     typingIndicator.textContent = '';
-    userListModal.classList.add('hidden');
+    userListPanel.classList.remove('active');
 }
 
 function checkUrlForRoom() {
@@ -471,13 +493,23 @@ function checkUrlForRoom() {
 async function sendMessage(text) {
     if (!text.trim() || !appState.userId || !appState.roomId) return;
     try {
-        await addDoc(collection(appState.db, getMessagesPath(appState.roomId)), {
+        const messageData = {
             text: text,
             senderId: appState.userId,
             timestamp: serverTimestamp(),
             seenBy: [appState.userId]
-        });
+        };
+        if (appState.replyToMessageId) {
+            messageData.replyTo = appState.replyToMessageId;
+        }
+
+        await addDoc(collection(appState.db, getMessagesPath(appState.roomId)), messageData);
+        
         messageInput.value = '';
+        appState.replyToMessageId = null;
+        replyPreview.classList.add('hidden');
+        replyPreview.classList.remove('flex');
+        
         await deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
     } catch (error) {
         console.error("Error sending message: ", error);
@@ -591,14 +623,7 @@ shareRoomBtn.addEventListener('click', async (e) => {
 
 toggleUsersBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    userListModal.classList.remove('hidden');
-    userListModal.classList.add('flex');
-});
-
-closeUserListBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    userListModal.classList.add('hidden');
-    userListModal.classList.remove('flex');
+    userListPanel.classList.toggle('active');
 });
 
 themeToggleBtn.addEventListener('click', toggleTheme);
@@ -619,12 +644,7 @@ messageForm.addEventListener('submit', (e) => {
     sendMessage(messageInput.value);
 });
 
-messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        sendMessage(messageInput.value);
-    }
-});
+messageInput.addEventListener('input', updateTypingStatus);
 
 fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -698,6 +718,13 @@ userNameDisplay.addEventListener('click', () => {
     input.addEventListener('keydown', handleKeydown);
 });
 
+cancelReplyBtn.addEventListener('click', () => {
+    appState.replyToMessageId = null;
+    replyPreview.classList.add('hidden');
+    replyPreview.classList.remove('flex');
+});
+
+
 document.body.addEventListener('click', (e) => {
     if (!e.target.closest('.reactions-container')) {
         document.querySelectorAll('.emoji-picker.active').forEach(picker => picker.classList.remove('active'));
@@ -705,9 +732,8 @@ document.body.addEventListener('click', (e) => {
     if (!e.target.closest('#message-emoji-picker') && !e.target.closest('#emoji-picker-btn')) {
         messageEmojiPicker.classList.remove('active');
     }
-    if (!e.target.closest('#user-list-modal') && !e.target.closest('#toggle-users-btn')) {
-        userListModal.classList.add('hidden');
-        userListModal.classList.remove('flex');
+    if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
+        userListPanel.classList.remove('active');
     }
 });
 
