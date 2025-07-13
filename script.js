@@ -27,7 +27,6 @@ const appState = {
     },
     typingTimeout: null,
     isInitialLoad: true,
-    replyToMessageId: null,
 };
 
 const appId = 'default-chat-app';
@@ -38,8 +37,10 @@ const chatView = document.getElementById('chat-view');
 const joinRoomBtn = document.getElementById('join-room-btn');
 const joinGeneralBtn = document.getElementById('join-general-btn');
 const roomIdInput = document.getElementById('room-id-input');
-const leaveRoomBtn = document.getElementById('leave-room-btn');
-const shareRoomBtn = document.getElementById('share-room-btn');
+const leaveRoomBtnDesktop = document.getElementById('leave-room-btn-desktop');
+const leaveRoomBtnMobile = document.getElementById('leave-room-btn-mobile');
+const shareRoomBtnDesktop = document.getElementById('share-room-btn-desktop');
+const shareRoomBtnMobile = document.getElementById('share-room-btn-mobile');
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
 const muteBtn = document.getElementById('mute-btn');
 const messageForm = document.getElementById('message-form');
@@ -60,10 +61,8 @@ const toggleUsersBtn = document.getElementById('toggle-users-btn');
 const userCountBadge = document.getElementById('user-count-badge');
 const typingIndicator = document.getElementById('typing-indicator');
 const notificationSound = document.getElementById('notification-sound');
-const replyPreview = document.getElementById('reply-preview');
-const replyToUser = document.getElementById('reply-to-user');
-const replyToText = document.getElementById('reply-to-text');
-const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+const moreOptionsBtn = document.getElementById('more-options-btn');
+const moreOptionsDropdown = document.getElementById('more-options-dropdown');
 
 
 // --- Firestore Path Helpers ---
@@ -267,20 +266,6 @@ function renderMessages(messages) {
         messageElement.classList.add('message', 'p-3', 'rounded-xl', 'shadow-md', 'w-fit');
         messageElement.classList.add(isCurrentUser ? 'message-user' : 'message-other');
 
-        if (msg.replyTo) {
-            const originalMessage = messages.find(m => m.id === msg.replyTo);
-            if (originalMessage) {
-                const quotedMessage = document.createElement('div');
-                quotedMessage.classList.add('quoted-message');
-                const originalSender = appState.userNamesCache.get(originalMessage.senderId) || '...';
-                quotedMessage.innerHTML = `
-                    <p class="font-bold text-xs">${originalSender}</p>
-                    <p class="text-xs truncate">${originalMessage.text || 'File'}</p>
-                `;
-                messageElement.appendChild(quotedMessage);
-            }
-        }
-
         const senderIdDisplay = document.createElement('p');
         senderIdDisplay.classList.add('text-xs', 'font-bold', 'opacity-70', 'mb-1');
         senderIdDisplay.textContent = isCurrentUser ? 'You' : displayName;
@@ -329,20 +314,6 @@ function renderMessages(messages) {
         
         footerContainer.appendChild(timestamp);
         footerContainer.appendChild(readReceipt);
-
-        const replyBtn = document.createElement('button');
-        replyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18c-3.3 0-6-2.7-6-6s2.7-6 6-6h9a4 4 0 0 1 0 8h-1"></path><polyline points="12 14 16 18 12 22"></polyline></svg>`;
-        replyBtn.classList.add('reply-btn');
-        replyBtn.addEventListener('click', () => {
-            appState.replyToMessageId = msg.id;
-            replyToUser.textContent = displayName;
-            replyToText.textContent = msg.text || 'File';
-            replyPreview.classList.remove('hidden');
-            replyPreview.classList.add('flex');
-            messageInput.focus();
-        });
-        messageBubble.appendChild(replyBtn);
-
 
         messageElement.appendChild(senderIdDisplay);
         messageElement.appendChild(messageContent);
@@ -493,23 +464,13 @@ function checkUrlForRoom() {
 async function sendMessage(text) {
     if (!text.trim() || !appState.userId || !appState.roomId) return;
     try {
-        const messageData = {
+        await addDoc(collection(appState.db, getMessagesPath(appState.roomId)), {
             text: text,
             senderId: appState.userId,
             timestamp: serverTimestamp(),
             seenBy: [appState.userId]
-        };
-        if (appState.replyToMessageId) {
-            messageData.replyTo = appState.replyToMessageId;
-        }
-
-        await addDoc(collection(appState.db, getMessagesPath(appState.roomId)), messageData);
-        
+        });
         messageInput.value = '';
-        appState.replyToMessageId = null;
-        replyPreview.classList.add('hidden');
-        replyPreview.classList.remove('flex');
-        
         await deleteDoc(doc(appState.db, getTypingPath(appState.roomId), appState.userId));
     } catch (error) {
         console.error("Error sending message: ", error);
@@ -608,18 +569,22 @@ joinGeneralBtn.addEventListener('click', (e) => {
     }
 });
 
-leaveRoomBtn.addEventListener('click', leaveRoom);
+leaveRoomBtnDesktop.addEventListener('click', leaveRoom);
+leaveRoomBtnMobile.addEventListener('click', leaveRoom);
 
-shareRoomBtn.addEventListener('click', async (e) => {
+const shareRoomAction = async (e) => {
     e.stopPropagation();
     const shareLink = window.location.href;
     await copyTextToClipboard(shareLink);
-    const originalText = shareRoomBtn.innerHTML;
-    shareRoomBtn.innerHTML = 'Copied!';
+    const originalText = e.currentTarget.innerHTML;
+    e.currentTarget.innerHTML = 'Copied!';
     setTimeout(() => {
-        shareRoomBtn.innerHTML = originalText;
+        e.currentTarget.innerHTML = originalText;
     }, 2000);
-});
+};
+
+shareRoomBtnDesktop.addEventListener('click', shareRoomAction);
+shareRoomBtnMobile.addEventListener('click', shareRoomAction);
 
 toggleUsersBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -718,12 +683,10 @@ userNameDisplay.addEventListener('click', () => {
     input.addEventListener('keydown', handleKeydown);
 });
 
-cancelReplyBtn.addEventListener('click', () => {
-    appState.replyToMessageId = null;
-    replyPreview.classList.add('hidden');
-    replyPreview.classList.remove('flex');
+moreOptionsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreOptionsDropdown.classList.toggle('hidden');
 });
-
 
 document.body.addEventListener('click', (e) => {
     if (!e.target.closest('.reactions-container')) {
@@ -734,6 +697,9 @@ document.body.addEventListener('click', (e) => {
     }
     if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
         userListPanel.classList.remove('active');
+    }
+    if (!e.target.closest('#more-options-btn')) {
+        moreOptionsDropdown.classList.add('hidden');
     }
 });
 
