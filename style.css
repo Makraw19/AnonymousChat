@@ -140,45 +140,7 @@ body {
     40% { transform: scale(1.0); }
 }
 
-
-/* Mobile User List Panel & Layout Adjustments */
-@media (max-width: 767px) {
-    /* Main chat area adjustments for mobile */
-    #chat-view .px-4 {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    /* Make the form more touch-friendly */
-    #message-form {
-        padding-bottom: 0.5rem; /* Add some space at the bottom */
-    }
-
-    /* Make the user list a true overlay */
-    #user-list-panel {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 250px; /* A slightly wider panel */
-        background-color: var(--bg-primary);
-        box-shadow: -4px 0 15px rgba(0,0,0,0.2); /* A more pronounced shadow */
-        transform: translateX(100%);
-        transition: transform 0.3s ease-in-out;
-        z-index: 30;
-        display: flex;
-        flex-direction: column; /* Ensure vertical layout */
-        padding: 1rem;
-        border-left: 1px solid var(--border-color);
-    }
-
-    #user-list-panel.active {
-        transform: translateX(0);
-    }
-}
-
-
-/* Reactions & Emoji Picker */
+/* Reactions & Reaction Picker */
 .reactions-container {
     position: absolute;
     bottom: -15px;
@@ -318,6 +280,54 @@ body {
 }
 .emoji-panel span:hover {
     background-color: var(--bg-tertiary);
+}
+
+
+/* ============================================== */
+/* ==   Definitive Mobile Responsive Styles    == */
+/* ============================================== */
+@media (max-width: 767px) {
+    /* Allow the app to fill the entire screen on mobile devices. */
+    #app-container {
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        border: none;
+    }
+
+    /* Adjust padding for the main chat view to give content more space. */
+    #chat-view .p-4 {
+        padding: 1rem;
+    }
+
+    /* Make the message input form more compact and touch-friendly. */
+    #message-form {
+        padding-bottom: 0.5rem; /* Add space at the screen bottom */
+        gap: 0.5rem; /* Reduce space between buttons */
+    }
+
+    /* Ensure the user list is a true overlay that slides in from the right. */
+    #user-list-panel {
+        position: absolute; /* This is key for the overlay effect */
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 250px; 
+        background-color: var(--bg-primary);
+        box-shadow: -4px 0 15px rgba(0,0,0,0.2);
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+        z-index: 30;
+        display: flex;
+        flex-direction: column;
+        padding: 1rem;
+        border-left: 1px solid var(--border-color);
+    }
+
+    /* This class is toggled by JavaScript to show the panel. */
+    #user-list-panel.active {
+        transform: translateX(0);
+    }
 }
 
 
