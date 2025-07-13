@@ -1,25 +1,24 @@
+/* Using a more modern approach with CSS variables for easier theming */
 :root {
     --bg-primary: #ffffff;
-    --bg-secondary: #f1f5f9;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #f1f5f9;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
     --border-color: #e2e8f0;
-    --accent-bg: #2563eb;
-    --accent-text: #ffffff;
+    --user-message-bg: linear-gradient(to right, #3b82f6, #6366f1);
     --other-message-bg: #e5e7eb;
-    --other-message-text: #1f2937;
 }
 
 .dark {
     --bg-primary: #1e293b;
     --bg-secondary: #0f172a;
+    --bg-tertiary: #1a2436;
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
     --border-color: #334155;
-    --accent-bg: #3b82f6;
-    --accent-text: #ffffff;
+    --user-message-bg: linear-gradient(to right, #3b82f6, #8b5cf6);
     --other-message-bg: #334155;
-    --other-message-text: #cbd5e1;
 }
 
 body {
@@ -34,57 +33,98 @@ body {
 }
 
 #messages {
-    scroll-behavior: smooth;
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-tertiary);
 }
 
-.message {
-    max-width: 80%;
-    transition: all 0.2s ease-in-out;
+.message-wrapper {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: slide-in 0.3s ease-out forwards;
+}
+
+@keyframes slide-in {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-bubble {
     position: relative;
 }
 
-.message-user {
-    align-self: flex-end;
-    background-color: var(--accent-bg);
-    color: var(--accent-text);
+.message-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border: 10px solid transparent;
 }
 
-.message-other {
-    align-self: flex-start;
+.message-user .message-bubble::after {
+    right: -10px;
+    border-left-color: #6366f1; /* Corresponds to the end of the user gradient */
+    border-right: 0;
+    border-bottom: 0;
+}
+
+.dark .message-user .message-bubble::after {
+    border-left-color: #8b5cf6;
+}
+
+.message-other .message-bubble::after {
+    left: -10px;
+    border-right-color: var(--other-message-bg);
+    border-left: 0;
+    border-bottom: 0;
+}
+
+.message {
+    max-width: 100%;
+    transition: all 0.2s ease-in-out;
+    color: var(--text-primary);
+}
+
+.message-user .message {
+    background: var(--user-message-bg);
+    color: white;
+}
+
+.message-other .message {
     background-color: var(--other-message-bg);
-    color: var(--other-message-text);
 }
 
 .avatar {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1rem;
     flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* For custom scrollbars */
-::-webkit-scrollbar {
-    width: 8px;
+/* Typing Indicator Animation */
+.typing-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    animation: pulse 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pulse {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1.0); }
 }
 
-::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb {
-    background: #475569;
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-}
 
 /* Mobile User List Panel */
 @media (max-width: 767px) {
@@ -101,6 +141,7 @@ body {
         z-index: 30;
         display: flex;
         padding: 1rem;
+        border-left: 1px solid var(--border-color);
     }
 
     #user-list-panel.active {
@@ -109,11 +150,10 @@ body {
 }
 
 
-/* Message Reactions */
+/* Reactions & Emoji Picker */
 .reactions-container {
     position: absolute;
     bottom: -15px;
-    left: 10px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -124,32 +164,23 @@ body {
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     z-index: 10;
 }
+.message-user .reactions-container { right: 10px; }
+.message-other .reactions-container { left: 10px; }
 
-.message-user .reactions-container {
-    left: auto;
-    right: 10px;
-}
 
 .reaction {
     cursor: pointer;
     padding: 2px 6px;
     border-radius: 1rem;
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-tertiary);
     transition: transform 0.1s ease-in-out;
     font-size: 12px;
 }
-
-.reaction:hover {
-    transform: scale(1.15);
-}
-
-.reaction.reacted-by-user {
-    background-color: #60a5fa; /* blue-400 */
-    color: white;
-}
+.reaction:hover { transform: scale(1.15); }
+.reaction.reacted-by-user { background-color: #60a5fa; color: white; }
 
 .add-reaction-btn {
-    background-color: var(--other-message-bg);
+    background-color: var(--bg-tertiary);
     border-radius: 50%;
     width: 20px;
     height: 20px;
@@ -173,14 +204,8 @@ body {
     bottom: 25px;
     z-index: 20;
 }
-
-.message-user .emoji-picker {
-    right: 0;
-}
-
-.emoji-picker.active {
-    display: flex;
-}
+.message-user .emoji-picker { right: 0; }
+.emoji-picker.active { display: flex; }
 
 /* Read Receipts */
 .read-receipt {
@@ -188,9 +213,33 @@ body {
     color: var(--text-secondary);
     margin-left: 8px;
 }
+.read-receipt.seen-by-all { color: #3b82f6; }
 
-.read-receipt.seen-by-all {
-    color: #3b82f6; /* blue-500 */
+/* Control Button Utility */
+.control-btn {
+    padding: 0.625rem; /* p-2.5 */
+    border-radius: 9999px; /* rounded-full */
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+
+.control-btn:not([class*="bg-"]) {
+    background-color: #f1f5f9; /* bg-slate-200 */
+    color: #334155; /* text-slate-700 */
+}
+.control-btn:not([class*="bg-"]):hover {
+    background-color: #e2e8f0; /* hover:bg-slate-300 */
+}
+
+.dark .control-btn:not([class*="bg-"]) {
+    background-color: rgba(51, 65, 85, 0.5); /* dark:bg-slate-700/50 */
+    color: #cbd5e1; /* dark:text-slate-300 */
+}
+.dark .control-btn:not([class*="bg-"]):hover {
+    background-color: #334155; /* dark:hover:bg-slate-700 */
+}
+
 
 
