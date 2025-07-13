@@ -44,13 +44,15 @@
             <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/50 pb-4 mb-4 gap-2 p-4">
                 <div class="truncate">
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">Room: <span id="room-name" class="text-blue-500"></span></h2>
-                    <p id="user-id-container" class="text-xs text-slate-500 dark:text-slate-400 mt-1 cursor-pointer" title="Click to copy ID">
-                        <span id="user-name-display" class="font-semibold text-blue-500"></span>
+                    <p id="user-id-container" class="text-xs text-slate-500 dark:text-slate-400 mt-1" title="Click name to edit">
+                        <span id="user-name-display" class="font-semibold text-blue-500 cursor-pointer"></span>
                         (<span id="user-id-display" class="font-mono bg-slate-200 dark:bg-slate-700 px-1 rounded"></span>)
                         <span id="copy-feedback" class="text-blue-500 font-semibold hidden">ID Copied!</span>
                     </p>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
+                     <button id="mute-btn" class="control-btn">
+                        </button>
                      <button id="theme-toggle-btn" class="control-btn">
                         </button>
                      <button id="toggle-users-btn" class="control-btn md:hidden relative">
@@ -72,7 +74,11 @@
                         </div>
                     <div id="typing-indicator" class="h-6 text-sm text-slate-500 dark:text-slate-400 italic pl-2 flex items-center gap-1"></div>
                     <form id="message-form" class="flex items-center gap-3 mt-2">
-                        <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off" class="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition" required>
+                        <label for="file-input" class="cursor-pointer p-3 rounded-lg bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        </label>
+                        <input type="file" id="file-input" class="hidden">
+                        <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off" class="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
                         <button type="submit" class="bg-gradient-to-br from-blue-500 to-violet-500 text-white font-bold p-3 rounded-lg hover:from-blue-600 hover:to-violet-600 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transform hover:-translate-y-px">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                         </button>
