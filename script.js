@@ -59,6 +59,13 @@ const toggleUsersBtn = document.getElementById('toggle-users-btn');
 const userCountBadge = document.getElementById('user-count-badge');
 const typingIndicator = document.getElementById('typing-indicator');
 const notificationSound = document.getElementById('notification-sound');
+const userProfileModal = document.getElementById('user-profile-modal');
+const usernameInput = document.getElementById('username-input');
+const bioInput = document.getElementById('bio-input');
+const saveProfileBtn = document.getElementById('save-profile-btn');
+const cancelProfileBtn = document.getElementById('cancel-profile-btn');
+const themePicker = document.getElementById('theme-picker');
+
 
 // --- Firestore Path Helpers ---
 const getUsersBasePath = () => `/artifacts/${appId}/public/data/users`;
@@ -134,10 +141,13 @@ async function getOrCreateUserProfile(userId) {
         appState.currentUserDisplayName = userDocSnap.data().displayName;
     } else {
         const newName = generateRandomName();
-        await setDoc(userDocRef, { displayName: newName }, { merge: true });
+        await setDoc(userDocRef, { displayName: newName, bio: '' }, { merge: true });
         appState.currentUserDisplayName = newName;
     }
-    appState.userNamesCache.set(userId, appState.currentUserDisplayName);
+    appState.userNamesCache.set(userId, {
+        displayName: appState.currentUserDisplayName,
+        bio: userDocSnap.data()?.bio || ''
+    });
 }
 
 async function fetchUserNames(userIds) {
@@ -149,7 +159,10 @@ async function fetchUserNames(userIds) {
 
     userDocs.forEach(docSnap => {
         if (docSnap.exists()) {
-            appState.userNamesCache.set(docSnap.id, docSnap.data().displayName || 'Anonymous');
+            appState.userNamesCache.set(docSnap.id, {
+                displayName: docSnap.data().displayName || 'Anonymous',
+                bio: docSnap.data().bio || ''
+            });
         }
     });
 }
@@ -243,7 +256,8 @@ function renderMessages(messages) {
     messagesContainer.innerHTML = '';
     messages.forEach(msg => {
         const isCurrentUser = msg.senderId === appState.userId;
-        const displayName = appState.userNamesCache.get(msg.senderId) || '...';
+        const senderProfile = appState.userNamesCache.get(msg.senderId) || { displayName: '...' };
+        const displayName = senderProfile.displayName;
         
         const messageWrapper = document.createElement('div');
         messageWrapper.classList.add('message-wrapper', 'flex', 'items-end', 'gap-3');
@@ -377,7 +391,8 @@ function renderUsers(users) {
         const userElement = document.createElement('div');
         userElement.classList.add('flex', 'items-center', 'p-2', 'rounded-md', 'hover:bg-slate-200', 'dark:hover:bg-slate-700/50', 'transition-colors', 'user-list-item');
         const isCurrentUser = uid === appState.userId;
-        const displayName = appState.userNamesCache.get(uid) || '...';
+        const userProfile = appState.userNamesCache.get(uid) || { displayName: '...' };
+        const displayName = userProfile.displayName;
 
         const avatar = document.createElement('div');
         avatar.classList.add('avatar', 'mr-3');
@@ -399,7 +414,7 @@ function renderTypingIndicator(typingUsers) {
     if (typingUsers.length === 0) {
         typingIndicator.innerHTML = '';
     } else {
-        const name = appState.userNamesCache.get(typingUsers[0]) || 'Someone';
+        const name = appState.userNamesCache.get(typingUsers[0])?.displayName || 'Someone';
         const text = typingUsers.length > 1 ? 'Several people are typing' : `${name} is typing`;
         typingIndicator.innerHTML = `
             <span class="text-sm italic">${text}</span>
@@ -635,44 +650,36 @@ userIdContainer.addEventListener('click', async (e) => {
 });
 
 userNameDisplay.addEventListener('click', () => {
-    const currentName = userNameDisplay.textContent;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = currentName;
-    input.className = 'bg-transparent border-b border-blue-500 focus:outline-none w-32';
-
-    userNameDisplay.innerHTML = '';
-    userNameDisplay.appendChild(input);
-    input.focus();
-
-    const finishEditing = async () => {
-        const newName = input.value.trim();
-        if (newName && newName !== appState.currentUserDisplayName) {
-            const userDocRef = doc(appState.db, getUsersBasePath(), appState.userId);
-            await updateDoc(userDocRef, { displayName: newName });
-            
-            appState.currentUserDisplayName = newName;
-            appState.userNamesCache.set(appState.userId, newName);
-        }
-        userNameDisplay.innerHTML = '';
-        userNameDisplay.textContent = appState.currentUserDisplayName;
-        
-        input.removeEventListener('blur', finishEditing);
-        input.removeEventListener('keydown', handleKeydown);
-    };
-
-    const handleKeydown = (e) => {
-        if (e.key === 'Enter') {
-            input.blur();
-        } else if (e.key === 'Escape') {
-            input.value = appState.currentUserDisplayName;
-            input.blur();
-        }
-    };
-
-    input.addEventListener('blur', finishEditing);
-    input.addEventListener('keydown', handleKeydown);
+    const userProfile = appState.userNamesCache.get(appState.userId);
+    usernameInput.value = userProfile.displayName;
+    bioInput.value = userProfile.bio;
+    userProfileModal.classList.remove('hidden');
 });
+
+cancelProfileBtn.addEventListener('click', () => {
+    userProfileModal.classList.add('hidden');
+});
+
+saveProfileBtn.addEventListener('click', async () => {
+    const newUsername = usernameInput.value.trim();
+    const newBio = bioInput.value.trim();
+
+    if (newUsername) {
+        const userDocRef = doc(appState.db, getUsersBasePath(), appState.userId);
+        await updateDoc(userDocRef, { 
+            displayName: newUsername,
+            bio: newBio
+        });
+
+        appState.userNamesCache.set(appState.userId, {
+            displayName: newUsername,
+            bio: newBio
+        });
+        userNameDisplay.textContent = newUsername;
+        userProfileModal.classList.add('hidden');
+    }
+});
+
 
 document.body.addEventListener('click', (e) => {
     if (!e.target.closest('.reactions-container')) {
