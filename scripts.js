@@ -491,6 +491,7 @@ document.body.addEventListener('click', (e) => {
     }
     if (!e.target.closest('#user-list-panel') && !e.target.closest('#toggle-users-btn')) {
         userListPanel.classList.remove('active');
+        
     }
 });
 
